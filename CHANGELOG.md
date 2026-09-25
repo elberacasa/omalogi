@@ -5,6 +5,21 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Added
+
+- The Logitech G502 Hero (046d:c08b) is verified on real hardware, and with it profile
+  layout (1, 2), so it needs no acceptance before a write. Verified and contributed by
+  @Oreshec (#17, #37), the first model verified by someone other than the maintainer.
+
+### Fixed
+
+- The hardware self-test keeps a factory binding the text catalog cannot spell, instead
+  of trying to write it back as text. Some mice store a special action with a `0xff`
+  profile byte (`90 xx ff ff`), which has no text form, so the restore step could never
+  match byte for byte on them. Each layer is tracked apart, and the live DPI switch and
+  the profile on/off checks are skipped when a mouse's snapshot has no room for them
+  (@Oreshec, #37).
+
 ### Changed
 
 - OpenLogi 0.8.6 (from 0.8.3). Its HID++ layer no longer takes a reply that arrives
