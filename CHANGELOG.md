@@ -5,6 +5,8 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+## [0.3.4] - 2026-09-26
+
 ### Added
 
 - The Logitech G502 Hero (046d:c08b) is verified on real hardware, and with it profile
