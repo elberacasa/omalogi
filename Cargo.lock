@@ -563,7 +563,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1259,9 +1259,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-core"
-version = "0.8.6"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1412836ff0fd9731a3b8759920fe3a8bf1967673b77743ae2b472b032357dd16"
+checksum = "73943a384c4a6a02cd41d26851e5085c1751a721db6ef8b2b32e77ff524eb9ee"
 dependencies = [
  "atomic-write-file",
  "az",
@@ -1302,9 +1302,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-device-registry"
-version = "0.8.6"
+version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "838027965b947a538f14102d830b679caa14af1c1eebf2abdaf01fe718a873b2"
+checksum = "da9f498b18e90443bf7b507593a28d2ba58a6b88796970855f9c51c2fffa5ab0"
 
 [[package]]
 name = "openlogi-fixture"
@@ -1343,9 +1343,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp"
-version = "0.8.6"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23def7b200b498000189aa97705ee1f7c14d450ff2c28b7daa54a15d8eda63c7"
+checksum = "5c62f7332b9c7f7e1ccb686b3c633984c0ed6fbe5071a15a966e875a72e75743"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1365,9 +1365,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp-derive"
-version = "0.8.6"
+version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707167fbfb3d189a6973a1f7a564c0208fa63e7e672ea964c086512a11db572e"
+checksum = "338f034c7f90d4ed6cbc180491b143b2f63ac353e1486638731e3aa0c31cd5b6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1613,7 +1613,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2257,7 +2257,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
