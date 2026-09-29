@@ -1,4 +1,5 @@
 import QtQuick
+import QtCore
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -26,6 +27,7 @@ Item {
   property var catalog: []
   // `omalogi picture`: the mouse's picture with button positions, or null.
   property var picture: null
+  property bool pictureRequestWhite: false
   property string loadError: ""
   // The helper's `kind` for loadError, when it names one (see Model.setupState).
   property string loadErrorKind: ""
@@ -60,6 +62,7 @@ Item {
   property var pendingOpen: null
 
   property bool loading: false
+  property bool livePolling: false
   // At most one write is in flight; edits made meanwhile are saved after it.
   property bool saving: false
   property bool undoing: false
@@ -100,6 +103,28 @@ Item {
   readonly property int railWidth: Style.space(52)
   readonly property int libraryWidth: Style.space(330)
 
+  Settings {
+    id: deviceAppearance
+    location: "file://" + (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
+      + "/omarchy/omalogi-appearance.ini"
+    category: "device"
+    property string mouseColor: "black"
+  }
+
+  function loadPicture() {
+    if (pictureCommand.running) return
+    root.pictureRequestWhite = deviceAppearance.mouseColor === "white"
+    pictureCommand.start(root.pictureRequestWhite
+      ? ["picture", "--json", "--white"] : ["picture", "--json"])
+  }
+
+  function setPictureColor(white) {
+    var color = white ? "white" : "black"
+    if (deviceAppearance.mouseColor === color) return
+    deviceAppearance.mouseColor = color
+    root.loadPicture()
+  }
+
   onSelectedSlotChanged: {
     // Show the view that has the selected button.
     var view = Model.viewForSlot(root.views, root.selectedSlot)
@@ -115,7 +140,7 @@ Item {
     if (root.ready) root.applyOpenRequest()
     root.refresh()
     if (root.catalog.length === 0 && !catalogCommand.running) catalogCommand.start(["actions", "--json"])
-    if (root.picture === null && !pictureCommand.running) pictureCommand.start(["picture", "--json"])
+    if (root.picture === null) root.loadPicture()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -450,10 +475,38 @@ Item {
   function daemonUpdated(state) {
     var previous = root.daemon
     root.daemon = state
-    // The daemon switched profiles: its state names the new one, so no read is needed.
+    // Follow a switch made on the mouse when the editor was showing the active profile.
     var switched = state !== null && state.active_profile !== null
       && (previous === null || previous.active_profile !== state.active_profile)
-    if (root.ready && switched) root.onboard = Model.withActive(root.onboard, state.active_profile - 1)
+    if (root.ready && switched) root.observeActive(state.active_profile - 1)
+  }
+
+  function observeActive(position) {
+    var next = Model.observedActive(root.onboard, position, root.cursor,
+      root.dirty || root.saving || root.undoing || saveTimer.running)
+    if (next === null) return
+    root.onboard = next.onboard
+    if (next.reloadDraft) {
+      root.cursor = next.cursor
+      root.loadDraft()
+    }
+  }
+
+  function refreshLive() {
+    if (!Model.canPollLive({
+      opened: root.opened, ready: root.ready, livePolling: root.livePolling,
+      loading: root.loading, saving: root.saving, undoing: root.undoing,
+      dirty: root.dirty, savePending: saveTimer.running, inFlight: server.inFlight
+    })) return
+    root.livePolling = true
+    server.request({ cmd: "state" }, function(ok, result) {
+      root.livePolling = false
+      if (ok && root.opened) {
+        root.info = result.info
+        root.observeActive(result.onboard.active_position)
+      }
+      root.stopServerWhenIdle()
+    })
   }
 
   OmalogiServer {
@@ -472,6 +525,15 @@ Item {
     onTriggered: root.save()
   }
 
+  // The daemon observes profile changes, but only the device reports live DPI.
+  // Poll while this window is open so its header follows the mouse's DPI buttons.
+  Timer {
+    interval: 2000
+    running: root.opened && root.ready
+    repeat: true
+    onTriggered: root.refreshLive()
+  }
+
   // Needs no device, so it runs as its own command.
   OmalogiCommand {
     id: catalogCommand
@@ -487,7 +549,18 @@ Item {
   OmalogiCommand {
     id: pictureCommand
     onFinished: function(exitCode, stdout, stderr) {
-      root.picture = exitCode === 0 ? Model.parseJson(stdout) : null
+      if (root.pictureRequestWhite !== (deviceAppearance.mouseColor === "white")) {
+        root.loadPicture()
+        return
+      }
+      var next = exitCode === 0 ? Model.parseJson(stdout) : null
+      if (next === null && root.pictureRequestWhite) {
+        deviceAppearance.mouseColor = "black"
+        root.say("Could not load the white picture: " + Model.errorMessage(stderr, exitCode), true)
+        root.loadPicture()
+        return
+      }
+      root.picture = next
     }
   }
 
@@ -633,6 +706,8 @@ Item {
             root.switchView(1)
           } else if (event.text === "g") {
             root.tab = root.tab === "gshift" ? "buttons" : "gshift"
+          } else if (event.text === "c" && root.picture && root.picture.has_white === true) {
+            root.setPictureColor(deviceAppearance.mouseColor !== "white")
           } else if (event.text === "1") {
             if (!root.assignments) root.tab = "buttons"
           } else if (event.text === "2") {
@@ -933,7 +1008,7 @@ Item {
               visible: root.ready && root.setupKind === ""
               opacity: 0.5
               text: root.assignments
-                ? "2 Sensitivity    ←→ view    g G-Shift    ↑↓ profile    ctrl+z undo    esc close"
+                ? "2 Sensitivity    ←→ view    c color    g G-Shift    ↑↓ profile    ctrl+z undo    esc close"
                 : "1 Assignments    ↑↓ profile    ctrl+z undo    esc close"
               font.pixelSize: Style.font.caption
             }
@@ -1115,6 +1190,8 @@ Item {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 views: root.views
+                whiteAvailable: root.picture !== null && root.picture.has_white === true
+                whiteSelected: deviceAppearance.mouseColor === "white"
                 viewIndex: root.viewIndex
                 entries: root.entries
                 catalog: root.catalog
@@ -1128,6 +1205,7 @@ Item {
                 }
                 onSlotHovered: function(slot, hovered) { root.hoverSlot(slot, hovered) }
                 onViewRequested: function(index) { root.viewIndex = index }
+                onColorRequested: function(white) { root.setPictureColor(white) }
                 onLayerRequested: function(gshift) { root.tab = gshift ? "gshift" : "buttons" }
                 onActionAssigned: function(slot, action) { root.assign(slot, action) }
                 onRecordRequested: function(slot) { library.startRecording(slot) }
@@ -1144,6 +1222,7 @@ Item {
               width: Math.min(parent.width - root.railWidth - Style.space(80), Style.space(1000))
               visible: !root.assignments
               draft: root.draft
+              liveDpi: root.info ? root.info.dpi : 0
               bounds: Model.dpiBounds(root.info)
               rates: root.info && root.info.report_rates_hz ? root.info.report_rates_hz : []
               onEdited: function(next, immediate) { root.updateDraft(next, immediate) }

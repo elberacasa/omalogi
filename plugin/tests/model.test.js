@@ -480,6 +480,24 @@ test("pictureViews keeps only usable views", () => {
   assert.equal(Model.viewWidth(picture.views[0], 280), 156)
 })
 
+test("pictureViews preserves unverified Lightspeed markers from the helper", () => {
+  const picture = {
+    depot: "g502x_lightspeed", slots_verified: false,
+    views: [
+      { name: "front", image: "/cache/front.png", width: 1391, height: 2700,
+        hotspots: [{ slot: 0, x: 480 / 1391, y: 450 / 2700 }] },
+      { name: "side", image: "/cache/side.png", width: 936, height: 2700,
+        hotspots: [{ slot: 3, x: 580 / 936, y: 1800 / 2700 }] }
+    ]
+  }
+  const views = plain(Model.pictureViews(picture))
+  assert.deepEqual(views.map((view) => view.hotspots.map((spot) => spot.slot)), [[0], [3]])
+  assert.equal(views[0].hotspots[0].x, 480 / 1391)
+  assert.equal(views[1].hotspots[0].y, 1800 / 2700)
+  assert.equal(picture.slots_verified, false)
+  assert.deepEqual(plain(Model.pictureViews({ ...picture, depot: "other" })), picture.views)
+})
+
 test("the DPI slider is logarithmic and snaps to the sensor's step", () => {
   const bounds = { min: 100, max: 25600, step: 50 }
   assert.equal(Model.dpiToPosition(100, bounds), 0)
@@ -546,6 +564,41 @@ test("withSlot and withActive update profiles without a full read", () => {
   assert.deepEqual(switched.profiles.map((slot) => slot.active), [false, false, true])
   assert.equal(switched.active_position, 2)
   assert.equal(onboard.profiles[0].active, true, "the original is not mutated")
+})
+
+test("physical profile changes follow the active editor only when it is idle", () => {
+  const onboard = {
+    mode: "onboard", description: {}, active_position: 0,
+    profiles: [0, 1, 2].map((position) => ({ position, active: position === 0 }))
+  }
+  const followed = plain(Model.observedActive(onboard, 2, 0, false))
+  assert.equal(followed.cursor, 2)
+  assert.equal(followed.reloadDraft, true)
+  assert.deepEqual(followed.onboard.profiles.map((slot) => slot.active), [false, false, true])
+
+  for (const [cursor, editing] of [[1, false], [0, true]]) {
+    const kept = plain(Model.observedActive(onboard, 2, cursor, editing))
+    assert.equal(kept.cursor, cursor)
+    assert.equal(kept.reloadDraft, false)
+    assert.equal(kept.onboard.active_position, 2)
+  }
+  assert.equal(Model.observedActive(onboard, 0, 0, false), null)
+  assert.equal(Model.observedActive(onboard, 3, 0, false), null)
+  assert.equal(onboard.active_position, 0)
+})
+
+test("live polling waits for an idle open editor", () => {
+  const idle = {
+    opened: true, ready: true, livePolling: false, loading: false,
+    saving: false, undoing: false, dirty: false, savePending: false, inFlight: 0
+  }
+  assert.equal(Model.canPollLive(idle), true)
+  for (const [key, value] of Object.entries({
+    opened: false, ready: false, livePolling: true, loading: true,
+    saving: true, undoing: true, dirty: true, savePending: true, inFlight: 1
+  })) {
+    assert.equal(Model.canPollLive({ ...idle, [key]: value }), false, key)
+  }
 })
 
 test("the DPI bar places levels, ticks and roles", () => {

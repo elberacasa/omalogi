@@ -74,6 +74,9 @@ enum Command {
         /// Check the host for an updated picture.
         #[arg(long)]
         refresh: bool,
+        /// Use the white mouse render when this model has one.
+        #[arg(long)]
+        white: bool,
     },
     /// Serve the shell plugin: JSON requests on stdin, one per line, answered on stdout.
     #[command(hide = true)]
@@ -193,9 +196,18 @@ fn main() -> ExitCode {
         Command::Actions => print_actions(cli.json),
         Command::Daemon { config } => runtime.block_on(run_daemon(config)),
         Command::Serve => runtime.block_on(run_serve()),
-        Command::Picture { offline, refresh } => {
-            runtime.block_on(show_picture(cli.json, assets::Options { offline, refresh }))
-        }
+        Command::Picture {
+            offline,
+            refresh,
+            white,
+        } => runtime.block_on(show_picture(
+            cli.json,
+            assets::Options {
+                offline,
+                refresh,
+                white,
+            },
+        )),
         Command::Setup {
             dry_run,
             no_bar,
@@ -257,9 +269,11 @@ async fn show_picture(json: bool, options: assets::Options) -> Result<(), Box<dy
             ));
         }
         if !picture.slots_verified {
-            out.push_str(
-                "  Button positions are not verified for this device, so none are shown.\n",
-            );
+            out.push_str(if picture.views.iter().any(|view| !view.hotspots.is_empty()) {
+                "  Button positions come from the asset metadata; this mouse is not hardware verified.\n"
+            } else {
+                "  Button positions are not verified for this device, so none are shown.\n"
+            });
         }
         out
     })?;

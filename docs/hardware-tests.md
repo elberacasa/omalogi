@@ -13,6 +13,21 @@ The independent checker is `research/tools/probe_readonly.py`, a separate Python
 implementation that only sends HID++ getters and `memoryRead`. It is pinned to
 046d:c099, so entries for other mice rest on Omalogi's own read-back instead.
 
+## 2026-09-29 — G502 X Lightspeed receiver smoke test (still unverified)
+
+Device: G502 X Lightspeed through its LIGHTSPEED receiver, model ID 409f,
+firmware MPM 30.00.B0014. The mouse reported profile format 3, five profile
+positions and 11 buttons. Omalogi read all five enabled profiles with valid CRCs.
+Each profile's saved default was 1000 DPI at 1000 Hz; switching through profiles
+2, 3, 4, 5 and back to 1 made the live DPI read 1000 at each step. A DPI command
+changed the live reading to 1200 and it was restored to 1000. The black and white
+render filenames and hashes appear in the OpenLogi asset index for depot
+`g502x_lightspeed`. Its front and side metadata names G-buttons 1–11; the UI
+may show those positions while `slots_verified` remains false.
+
+This was a read and switching smoke test, not the repository's hardware self-test.
+It does not establish byte-for-byte write safety or mark the wireless model verified.
+
 ## 2026-09-23 — full self-test on the G502 Hero (046d:c08b)
 
 Device: Logitech G502 Hero, wired, USB 046d:c08b, firmware U1 27.03.B0010, bootloader

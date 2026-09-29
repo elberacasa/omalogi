@@ -897,6 +897,25 @@ function withActive(onboard, position) {
   }
 }
 
+// Follow a physical profile switch while preserving an editor selection or pending edits.
+function observedActive(onboard, position, cursor, editing) {
+  if (!onboard || position < 0 || position >= onboard.profiles.length
+      || onboard.active_position === position) return null
+  var follow = cursor === onboard.active_position && !editing
+  return {
+    onboard: withActive(onboard, position),
+    cursor: follow ? position : cursor,
+    reloadDraft: follow
+  }
+}
+
+// Poll only when the state reply cannot interrupt an edit or another request.
+function canPollLive(state) {
+  return state.opened && state.ready && !state.livePolling && !state.loading
+    && !state.saving && !state.undoing && !state.dirty && !state.savePending
+    && state.inFlight === 0
+}
+
 // Picture views from `omalogi picture`, or [] when there is no usable picture.
 function pictureViews(picture) {
   if (!picture || !Array.isArray(picture.views)) return []
@@ -909,4 +928,3 @@ function pictureViews(picture) {
 function viewWidth(view, height) {
   return Math.round((height * view.width) / view.height)
 }
-
