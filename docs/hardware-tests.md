@@ -355,6 +355,38 @@ sectors byte-identical to it.
 
 Result: **pass**.
 
+## 2026-09-30: G502 X Lightspeed mouse picture and button positions
+
+Device: the G502 X Lightspeed of the 2026-09-29 self-test, through its receiver.
+`omalogi picture` uses depot `g502x_lightspeed`, whose metadata names buttons
+`g502x-lightspeed_g<N>_m1`, with a hyphen where the depot has an underscore. With
+markers drawn on the renders, each position was compared with the firmware's default
+binding for slot N−1 on this mouse, and with the name Logitech's quick-start guide
+prints for that button:
+
+| Id | Position on the render | Logitech's name | Slot N−1 default |
+|---|---|---|---|
+| g1, g2, g3 | left button, right button, wheel | G1, G2, G3 | left, right, middle click |
+| g4 | rear thumb button | G4 | back |
+| g5 | front thumb button | G6 | DPI shift |
+| g6 | middle thumb button | G5 | forward |
+| g7, g8 | wheel tilt left, right | G10, G11 | scroll left, scroll right |
+| g9 | lower button behind the wheel | G9 | cycle profile |
+| g10, g11 | upper and lower left-edge buttons | G8, G7 | DPI up, DPI down |
+
+All 11 agree, so the overlay maps g*N* to slot N−1 for the Lightspeed too. The ids are
+not the names printed on the mouse, so the overlay labels each button with Logitech's
+name from this table; it used to show G*N*, which named six of the G502 X family's
+buttons wrongly (the sniper button read G5). `scroll1` and `scroll2` mark wheel up and down (Logitech's G12, G13), which
+have no slot; the button above G9 switches the wheel mode mechanically and has no
+marker.
+
+Actions assigned through the markers took effect on the matching physical button: g4,
+the rear thumb button, did DPI up and then a volume key. The edits were undone, and a
+backup afterwards was byte-identical, in all 9 sectors, to the one taken before them.
+
+Result: **consistent**.
+
 ## 2026-10-01: a firmware action keeps its bytes and gets a name, on the G502 Hero
 
 Device: Logitech G502 Hero SE, wired, USB 046d:c08b, profile layout (1, 2), 11 buttons,

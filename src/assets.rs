@@ -32,9 +32,19 @@ const VIEWS: &[(&str, &str, &str)] = &[
     ("device_side", "side", "side.png"),
 ];
 
-/// Depots whose button ids are checked against the device's onboard slots. For these,
-/// `<depot>_g<N>_m1` is onboard slot N-1 (docs/hardware-tests.md).
-const VERIFIED_DEPOTS: &[&str] = &["g502x"];
+/// The names Logitech prints on the G502 X family's buttons, by onboard slot. They are
+/// not the asset ids: slot 4 (the sniper button, id g5) is printed G6.
+const G502X_BUTTON_NAMES: &[&str] = &[
+    "G1", "G2", "G3", "G4", "G6", "G5", "G10", "G11", "G9", "G8", "G7",
+];
+
+/// Depots whose button ids are checked against the device's onboard slots, with the
+/// printed name of each slot's button. For these, `<depot>_g<N>_m1` is onboard slot N-1
+/// (docs/hardware-tests.md).
+const VERIFIED_DEPOTS: &[(&str, &[&str])] = &[
+    ("g502x", G502X_BUTTON_NAMES),
+    ("g502x_lightspeed", G502X_BUTTON_NAMES),
+];
 
 #[derive(Debug, Error)]
 pub enum AssetError {
@@ -78,6 +88,8 @@ pub struct Picture {
     pub depot: String,
     /// Whether hotspots are mapped to onboard slots; false for unverified devices.
     pub slots_verified: bool,
+    /// The name printed on each onboard slot's button, by slot; empty when unverified.
+    pub button_names: Vec<&'static str>,
     pub views: Vec<View>,
 }
 
@@ -265,7 +277,11 @@ pub fn load(
             depot: depot.clone(),
             source,
         })?;
-    let slots_verified = VERIFIED_DEPOTS.contains(&depot.as_str());
+    let button_names = VERIFIED_DEPOTS
+        .iter()
+        .find(|(verified, _)| verified == depot)
+        .map(|(_, names)| names.to_vec());
+    let slots_verified = button_names.is_some();
     let mut views = Vec::new();
     for image in &metadata.images {
         let Some(&(_, name, file_name)) = VIEWS.iter().find(|(key, ..)| *key == image.key) else {
@@ -301,14 +317,18 @@ pub fn load(
     Ok(Picture {
         depot: depot.clone(),
         slots_verified,
+        button_names: button_names.unwrap_or_default(),
         views,
     })
 }
 
 /// `<depot>_g<N>_m1` is onboard slot N-1 on verified depots; wheel ids have no slot.
+/// Some depots spell their name with hyphens in button ids: `g502x_lightspeed` names
+/// its buttons `g502x-lightspeed_g<N>_m1`.
 fn onboard_slot(depot: &str, slot_id: &str) -> Option<usize> {
     let number = slot_id
-        .strip_prefix(depot)?
+        .strip_prefix(depot)
+        .or_else(|| slot_id.strip_prefix(depot.replace('_', "-").as_str()))?
         .strip_prefix("_g")?
         .strip_suffix("_m1")?;
     if number.is_empty() || !number.bytes().all(|b| b.is_ascii_digit()) {
@@ -405,16 +425,18 @@ mod tests {
     }
 
     /// A made-up host: the same formats as the real one, none of its content.
+    /// Button ids spell the depot with hyphens, as OpenLogi's do.
     fn host(depot: &str, front: &[u8]) -> BTreeMap<String, Vec<u8>> {
+        let ids = depot.replace('_', "-");
         let metadata = serde_json::to_vec(&json!({
             "images": [
                 { "key": "device_image", "origin": { "width": 200.0, "height": 400.0 },
                   "assignments": [
-                    { "slotId": format!("{depot}_g1_m1"), "marker": { "x": 50.0, "y": 100.0 }, "label": { "x": -10, "y": 0 } },
-                    { "slotId": format!("{depot}_scroll1_m1"), "marker": { "x": 100.0, "y": 80.0 } }
+                    { "slotId": format!("{ids}_g1_m1"), "marker": { "x": 50.0, "y": 100.0 }, "label": { "x": -10, "y": 0 } },
+                    { "slotId": format!("{ids}_scroll1_m1"), "marker": { "x": 100.0, "y": 80.0 } }
                   ] },
                 { "key": "device_side", "origin": { "width": 100.0, "height": 400.0 },
-                  "assignments": [ { "slotId": format!("{depot}_g4_m1"), "marker": { "x": 25.0, "y": 300.0 } } ] },
+                  "assignments": [ { "slotId": format!("{ids}_g4_m1"), "marker": { "x": 25.0, "y": 300.0 } } ] },
                 { "key": "splash", "origin": { "width": 1.0, "height": 1.0 } }
             ]
         }))
@@ -465,6 +487,11 @@ mod tests {
         let picture = load(&dir.0, 0xC099, ONLINE, serve(&files, &requests)).unwrap();
         assert_eq!(requests.borrow().len(), 4);
         assert!(picture.slots_verified);
+        assert_eq!(
+            picture.button_names[4], "G6",
+            "the sniper button is printed G6"
+        );
+        assert_eq!(picture.button_names[5], "G5");
         assert_eq!(picture.views.len(), 2);
         let front = &picture.views[0];
         assert_eq!(front.name, "front");
@@ -528,12 +555,29 @@ mod tests {
     }
 
     #[test]
+    fn the_lightspeed_maps_its_hyphenated_button_ids() {
+        let dir = TempDir::new("lightspeed");
+        let files = host("g502x_lightspeed", FRONT);
+        let requests = RefCell::new(Vec::new());
+        let picture = load(&dir.0, 0xC099, ONLINE, serve(&files, &requests)).unwrap();
+        assert!(picture.slots_verified);
+        assert_eq!(picture.button_names, G502X_BUTTON_NAMES);
+        let slots: Vec<Vec<usize>> = picture
+            .views
+            .iter()
+            .map(|view| view.hotspots.iter().map(|spot| spot.slot).collect())
+            .collect();
+        assert_eq!(slots, [vec![0], vec![3]]);
+    }
+
+    #[test]
     fn unverified_devices_get_pictures_without_slots() {
         let dir = TempDir::new("unverified");
         let files = host("g502x_plus", FRONT);
         let requests = RefCell::new(Vec::new());
         let picture = load(&dir.0, 0xC099, ONLINE, serve(&files, &requests)).unwrap();
         assert!(!picture.slots_verified);
+        assert!(picture.button_names.is_empty());
         assert!(picture.views.iter().all(|view| view.hotspots.is_empty()));
     }
 
@@ -557,6 +601,22 @@ mod tests {
     fn slot_ids_map_to_onboard_slots() {
         assert_eq!(onboard_slot("g502x", "g502x_g1_m1"), Some(0));
         assert_eq!(onboard_slot("g502x", "g502x_g11_m1"), Some(10));
+        assert_eq!(
+            onboard_slot("g502x_lightspeed", "g502x-lightspeed_g1_m1"),
+            Some(0)
+        );
+        assert_eq!(
+            onboard_slot("g502x_lightspeed", "g502x-lightspeed_g11_m1"),
+            Some(10)
+        );
+        assert_eq!(
+            onboard_slot("g502x_lightspeed", "g502x_lightspeed_g5_m1"),
+            Some(4)
+        );
+        assert_eq!(
+            onboard_slot("g502x_lightspeed", "g502x-lightspeed_scroll1_m1"),
+            None
+        );
         assert_eq!(onboard_slot("g502x", "g502x_scroll1_m1"), None);
         assert_eq!(onboard_slot("g502x", "g502x_g0_m1"), None);
         assert_eq!(onboard_slot("g502x", "g502x_g1_m2"), None);
