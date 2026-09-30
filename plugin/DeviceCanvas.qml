@@ -13,6 +13,8 @@ Item {
 
   // Model.pictureViews(picture).
   property var views: []
+  property bool whiteAvailable: false
+  property bool whiteSelected: false
   property int viewIndex: 0
   // One entry per button of the shown layer: {slot, name, label, changed, action}.
   property var entries: []
@@ -26,6 +28,7 @@ Item {
   signal slotSelected(int slot)
   signal slotHovered(int slot, bool hovered)
   signal viewRequested(int index)
+  signal colorRequested(bool white)
   signal layerRequested(bool gshift)
   signal actionAssigned(int slot, string action)
   signal recordRequested(int slot)
@@ -361,6 +364,36 @@ Item {
           onEntered: canvas.viewRequested(tile.index)
         }
       }
+    }
+  }
+
+  Row {
+    anchors.right: parent.right
+    anchors.rightMargin: Style.spacing.md
+    y: Style.spacing.md
+    visible: canvas.hasPicture && canvas.whiteAvailable
+    spacing: Style.spacing.sm
+
+    Caption {
+      anchors.verticalCenter: parent.verticalCenter
+      text: "BLACK"
+      color: canvas.whiteSelected ? Color.menu.text : Color.accent
+      opacity: canvas.whiteSelected ? 0.6 : 1
+    }
+
+    ToggleSwitch {
+      anchors.verticalCenter: parent.verticalCenter
+      checked: canvas.whiteSelected
+      foreground: Color.menu.text
+      accent: Color.accent
+      onToggled: canvas.colorRequested(!canvas.whiteSelected)
+    }
+
+    Caption {
+      anchors.verticalCenter: parent.verticalCenter
+      text: "WHITE"
+      color: canvas.whiteSelected ? Color.accent : Color.menu.text
+      opacity: canvas.whiteSelected ? 1 : 0.6
     }
   }
 
