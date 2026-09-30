@@ -80,11 +80,15 @@ Item {
   readonly property string problem: root.draft ? Model.draftProblem(root.draft) : ""
   readonly property var views: Model.pictureViews(root.picture)
   readonly property bool slotsVerified: root.picture !== null && root.picture.slots_verified === true
+  // The name printed on each slot's button, by slot; [] from helpers that do not send them.
+  readonly property var buttonNames: root.slotsVerified && Array.isArray(root.picture.button_names)
+    ? root.picture.button_names : []
   readonly property int buttonCount: root.onboard ? root.onboard.description.button_count : 0
   readonly property bool assignments: root.tab !== "sensitivity"
   readonly property string table: root.tab === "gshift" ? "gshift" : "buttons"
   readonly property var entries: Model.slotEntries(
-    root.selected, root.draft, root.original, root.catalog, root.table, root.buttonCount, root.slotsVerified)
+    root.selected, root.draft, root.original, root.catalog, root.table, root.buttonCount,
+    root.slotsVerified, root.buttonNames)
   readonly property var selectedEntry: {
     var entry = Model.indexBySlot(root.entries)[root.selectedSlot]
     return entry === undefined ? null : entry
@@ -1090,7 +1094,7 @@ Item {
                 entry: root.selectedEntry
                 layerName: root.table === "gshift" ? "G-Shift layer" : "Default layer"
                 gshift: root.table === "gshift"
-                gshiftButtons: Model.gshiftButtons(root.draft, root.buttonCount)
+                gshiftButtons: Model.gshiftButtons(root.draft, root.buttonCount, root.buttonNames)
                 dragProxy: dragProxy
                 onChosen: function(action) { root.assign(root.selectedSlot, action) }
                 onShortcutRecorded: function(slot, action) { root.assign(slot, action) }

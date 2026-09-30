@@ -307,8 +307,13 @@ test("actionRows puts a header before each section", () => {
 test("modifiersLabel and buttonName", () => {
   assert.equal(Model.modifiersLabel(QT.CTRL | QT.META), "Ctrl+Super")
   assert.equal(Model.modifiersLabel(0), "")
-  assert.equal(Model.buttonName(3, true), "G4")
+  assert.equal(Model.buttonName(3, true), "G4", "helpers without printed names")
   assert.equal(Model.buttonName(3, false), "Slot 3")
+  const names = ["G1", "G2", "G3", "G4", "G6", "G5", "G10", "G11", "G9", "G8", "G7"]
+  assert.equal(Model.buttonName(4, true, names), "G6", "the G502 X's sniper button")
+  assert.equal(Model.buttonName(9, true, names), "G8")
+  assert.equal(Model.buttonName(4, false, names), "Slot 4", "unverified pictures keep slot numbers")
+  assert.equal(Model.buttonName(12, true, names), "G13", "a slot the list does not name")
 })
 
 test("slotEntries label changed bindings from the catalog and shortcuts", () => {
@@ -337,6 +342,10 @@ test("slotEntries label changed bindings from the catalog and shortcuts", () => 
   const left = entries.find((entry) => entry.slot === 0)
   assert.equal(left.changed, false)
   assert.equal(left.label, "left click")
+  const printed = plain(Model.slotEntries(slot, draft, original, catalog, "buttons", 6, true,
+    ["G1", "G2", "G3", "G4", "G6", "G5", "G10"]))
+  assert.equal(printed.find((entry) => entry.slot === 4).name, "G6", "the name printed on the mouse")
+  assert.equal(printed.find((entry) => entry.slot === 6).name, "Slot 6", "past the physical buttons")
   assert.deepEqual(plain(Model.slotEntries(null, draft, original, catalog, "buttons", 6, true)), [])
 })
 
@@ -590,6 +599,8 @@ test("gshiftButtons names the buttons that reach the G-Shift layer", () => {
   const holding = (index) => ({ ...none, buttons: none.buttons.map((action, i) => (i === index ? "gshift" : action)) })
   assert.deepEqual(plain(Model.gshiftButtons(none, 11)), [])
   assert.deepEqual(plain(Model.gshiftButtons(holding(4), 11)), ["G5"])
+  assert.deepEqual(plain(Model.gshiftButtons(holding(4), 11,
+    ["G1", "G2", "G3", "G4", "G6", "G5", "G10", "G11", "G9", "G8", "G7"])), ["G6"])
   assert.deepEqual(plain(Model.gshiftButtons(holding(12), 11)), [], "a slot past the physical buttons cannot be pressed")
   assert.deepEqual(plain(Model.gshiftButtons(null, 11)), [])
 })

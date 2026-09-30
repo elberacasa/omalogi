@@ -376,15 +376,15 @@ function draftProblem(draft) {
   return ""
 }
 
-// The G-numbers of the physical buttons that hold G-Shift on the default layer, e.g.
-// ["G5"]. Without one, the G-Shift layer cannot be reached on the mouse.
-function gshiftButtons(draft, buttonCount) {
+// The names of the physical buttons that hold G-Shift on the default layer, e.g.
+// ["G6"]. Without one, the G-Shift layer cannot be reached on the mouse.
+function gshiftButtons(draft, buttonCount, names) {
   if (!draft) return []
-  var names = []
+  var held = []
   ;(draft.buttons || []).forEach(function(action, slot) {
-    if (action === "gshift" && slot < buttonCount) names.push(buttonName(slot, true))
+    if (action === "gshift" && slot < buttonCount) held.push(buttonName(slot, true, names))
   })
-  return names
+  return held
 }
 
 // The sensor's DPI range and step, from the list `omalogi info` reports.
@@ -719,9 +719,11 @@ function modifiersLabel(modifiers) {
   return parts.join("+")
 }
 
-// A button's name: G HUB's G-number where the picture's positions are verified.
-function buttonName(slot, verified) {
-  return verified ? "G" + (slot + 1) : "Slot " + slot
+// A button's name where the picture's positions are verified: the name printed on the
+// mouse from `omalogi picture`'s button_names, or G<slot + 1> from helpers without them.
+function buttonName(slot, verified, names) {
+  if (!verified) return "Slot " + slot
+  return names && names[slot] ? names[slot] : "G" + (slot + 1)
 }
 
 // How an action reads: the mouse's own label while unchanged, otherwise the catalog
@@ -735,7 +737,7 @@ function actionLabel(catalog, action, deviceLabel, changed) {
 }
 
 // Canvas and inspector entries for one table ("buttons" or "gshift") of a profile.
-function slotEntries(slot, draft, original, catalog, table, buttonCount, verified) {
+function slotEntries(slot, draft, original, catalog, table, buttonCount, verified, names) {
   if (!slot || !draft || !original) return []
   var labels = (table === "gshift" ? slot.labels.gshift_buttons : slot.labels.buttons) || []
   return editableSlots(original, table, buttonCount).map(function(number) {
@@ -743,8 +745,8 @@ function slotEntries(slot, draft, original, catalog, table, buttonCount, verifie
     var changed = action !== original[table][number]
     return {
       slot: number,
-      // Slots past the physical buttons (extra wheel bindings) have no G-number.
-      name: buttonName(number, verified && number < buttonCount),
+      // Slots past the physical buttons (extra wheel bindings) have no printed name.
+      name: buttonName(number, verified && number < buttonCount, names),
       label: actionLabel(catalog, action, labels[number], changed),
       changed: changed,
       action: action
