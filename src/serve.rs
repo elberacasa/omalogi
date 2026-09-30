@@ -10,8 +10,10 @@
 //!    "buttons": {"3": "key:ctrl+t"}}
 //! → {"id": 3, "cmd": "undo"}
 //! → {"id": 4, "cmd": "activate", "profile": 2}
+//! → {"id": 5, "cmd": "live"}
 //! ← {"id": 2, "ok": true, "result": {"slot": {…}, "takes_effect": {"state": "now"}, …}}
 //! ← {"id": 3, "ok": false, "error": "…"}
+//! ← {"id": 5, "ok": true, "result": {"active_profile": 2, "dpi": 1600}}
 //! ```
 //!
 //! An error the overlay can act on also names its `kind`: `directory_checksum` when the
@@ -46,7 +48,8 @@ pub const SOFTWARE_ID: u8 = 0x0D;
 ///
 /// 2: `state` reports `support`, and `accept_untested` accepts editing an untested mouse.
 /// 3: errors carry a `kind`, and `repair_directory` rebuilds a damaged profile directory.
-pub const PROTOCOL: u32 = 3;
+/// 4: `live` answers the active profile and the sensor's DPI with two short requests.
+pub const PROTOCOL: u32 = 4;
 
 /// Where to save a backup for a device name.
 pub type BackupPath = fn(&str) -> Result<PathBuf, Box<dyn Error>>;
@@ -63,6 +66,8 @@ struct Request {
 enum Command {
     /// Device info and every profile, read from the mouse.
     State,
+    /// The active profile and the sensor's DPI right now, cheap enough to poll.
+    Live,
     Activate {
         profile: usize,
     },
@@ -255,6 +260,19 @@ impl Server {
                     "support": support,
                     "helper": { "version": env!("CARGO_PKG_VERSION"), "protocol": PROTOCOL },
                 }))
+            }
+            Command::Live => {
+                let active_profile = self
+                    .session
+                    .active_profile()
+                    .await
+                    .map_err(|e| Failure::new(&e))?;
+                let dpi = self
+                    .session
+                    .live_dpi()
+                    .await
+                    .map_err(|e| Failure::new(&e))?;
+                Ok(json!({ "active_profile": active_profile, "dpi": dpi }))
             }
             Command::Activate { profile } => {
                 self.session
