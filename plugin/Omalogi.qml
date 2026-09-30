@@ -1,4 +1,5 @@
 import QtQuick
+import QtCore
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -26,6 +27,7 @@ Item {
   property var catalog: []
   // `omalogi picture`: the mouse's picture with button positions, or null.
   property var picture: null
+  property bool pictureRequestWhite: false
   property string loadError: ""
   // The helper's `kind` for loadError, when it names one (see Model.setupState).
   property string loadErrorKind: ""
@@ -104,6 +106,29 @@ Item {
   readonly property int railWidth: Style.space(52)
   readonly property int libraryWidth: Style.space(330)
 
+  // Its own file: the daemon reads config.toml strictly and would reject unknown keys.
+  Settings {
+    id: deviceAppearance
+    location: "file://" + (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config")
+      + "/omalogi/appearance.ini"
+    category: "device"
+    property string mouseColor: "black"
+  }
+
+  function loadPicture() {
+    if (pictureCommand.running) return
+    root.pictureRequestWhite = deviceAppearance.mouseColor === "white"
+    pictureCommand.start(root.pictureRequestWhite
+      ? ["picture", "--json", "--white"] : ["picture", "--json"])
+  }
+
+  function setPictureColor(white) {
+    var color = white ? "white" : "black"
+    if (deviceAppearance.mouseColor === color) return
+    deviceAppearance.mouseColor = color
+    root.loadPicture()
+  }
+
   onSelectedSlotChanged: {
     // Show the view that has the selected button.
     var view = Model.viewForSlot(root.views, root.selectedSlot)
@@ -119,7 +144,7 @@ Item {
     if (root.ready) root.applyOpenRequest()
     root.refresh()
     if (root.catalog.length === 0 && !catalogCommand.running) catalogCommand.start(["actions", "--json"])
-    if (root.picture === null && !pictureCommand.running) pictureCommand.start(["picture", "--json"])
+    if (root.picture === null) root.loadPicture()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -491,7 +516,18 @@ Item {
   OmalogiCommand {
     id: pictureCommand
     onFinished: function(exitCode, stdout, stderr) {
-      root.picture = exitCode === 0 ? Model.parseJson(stdout) : null
+      if (root.pictureRequestWhite !== (deviceAppearance.mouseColor === "white")) {
+        root.loadPicture()
+        return
+      }
+      var next = exitCode === 0 ? Model.parseJson(stdout) : null
+      if (next === null && root.pictureRequestWhite) {
+        deviceAppearance.mouseColor = "black"
+        root.say("Could not load the white picture: " + Model.errorMessage(stderr, exitCode), true)
+        root.loadPicture()
+        return
+      }
+      root.picture = next
     }
   }
 
@@ -637,6 +673,8 @@ Item {
             root.switchView(1)
           } else if (event.text === "g") {
             root.tab = root.tab === "gshift" ? "buttons" : "gshift"
+          } else if (event.text === "c" && root.picture && root.picture.has_white === true) {
+            root.setPictureColor(deviceAppearance.mouseColor !== "white")
           } else if (event.text === "1") {
             if (!root.assignments) root.tab = "buttons"
           } else if (event.text === "2") {
@@ -937,7 +975,7 @@ Item {
               visible: root.ready && root.setupKind === ""
               opacity: 0.5
               text: root.assignments
-                ? "2 Sensitivity    ←→ view    g G-Shift    ↑↓ profile    ctrl+z undo    esc close"
+                ? "2 Sensitivity    ←→ view    c color    g G-Shift    ↑↓ profile    ctrl+z undo    esc close"
                 : "1 Assignments    ↑↓ profile    ctrl+z undo    esc close"
               font.pixelSize: Style.font.caption
             }
@@ -1119,6 +1157,8 @@ Item {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 views: root.views
+                whiteAvailable: root.picture !== null && root.picture.has_white === true
+                whiteSelected: deviceAppearance.mouseColor === "white"
                 viewIndex: root.viewIndex
                 entries: root.entries
                 catalog: root.catalog
@@ -1132,6 +1172,7 @@ Item {
                 }
                 onSlotHovered: function(slot, hovered) { root.hoverSlot(slot, hovered) }
                 onViewRequested: function(index) { root.viewIndex = index }
+                onColorRequested: function(white) { root.setPictureColor(white) }
                 onLayerRequested: function(gshift) { root.tab = gshift ? "gshift" : "buttons" }
                 onActionAssigned: function(slot, action) { root.assign(slot, action) }
                 onRecordRequested: function(slot) { library.startRecording(slot) }

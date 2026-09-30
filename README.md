@@ -248,10 +248,10 @@ Every profile opens ready to edit, including profiles that are turned off on the
   back what each earlier write replaced, one at a time. Switching profiles or closing
   the overlay saves what is pending first.
 
-Keys: `↑`/`↓` or `j`/`k` switch profile, `←`/`→` or `h`/`l` switch view, `g` switches
-between the default and G-Shift layers, `1` `2` switch page, `Enter` activates the
-profile, `Ctrl+Z` undoes, `Ctrl+S` saves now, `r` refreshes, `Esc` clears the selection
-and then closes.
+Keys: `↑`/`↓` or `j`/`k` switch profile, `←`/`→` or `h`/`l` switch view, `c` switches
+the picture's color when both renders exist, `g` switches between the default and G-Shift
+layers, `1` `2` switch page, `Enter` activates the profile, `Ctrl+Z` undoes, `Ctrl+S`
+saves now, `r` refreshes, `Esc` clears the selection and then closes.
 
 The overlay talks to the mouse through `omalogi serve`, one long-lived connection that
 starts when the overlay opens and stops after it closes, so edits do not wait for a
@@ -264,8 +264,12 @@ process to start or the whole profile memory to be read again.
 Omalogi does not ship the mouse pictures: the first time, `omalogi picture` downloads your
 model's render and button positions (about 9 MB for the G502 X) from `assets.openlogi.org`,
 the asset host OpenLogi uses, checks them against the host's checksums and caches them in
-`~/.cache/omalogi/pictures`. After that nothing is downloaded unless you run
-`omalogi picture --refresh`. Without a picture the buttons are shown as cards alone.
+`~/.cache/omalogi/pictures`. After that only selecting another render color or running
+`omalogi picture --refresh` downloads more files. Without a picture the buttons are
+shown as cards alone.
+Models with both render colors show a Black/White switch above the mouse. Omalogi saves
+the choice in `~/.config/omalogi/appearance.ini`; `omalogi picture --white` fetches the
+white render only when selected. The color changes only the picture, not the mouse's onboard profiles.
 
 To open on a profile, view or button (handy for a Hyprland binding):
 
@@ -332,8 +336,8 @@ Omalogi and takes it off the bar. If you installed the helper from the AUR, it l
 package alone; remove it with `sudo pacman -R omalogi`.
 
 Your mouse keeps its onboard profiles: uninstalling changes nothing on it. Backups in
-`~/.local/state/omalogi/backups/` and rules in `~/.config/omalogi/` are kept; delete them
-if you no longer need them.
+`~/.local/state/omalogi/backups/` and rules and settings in `~/.config/omalogi/` are kept;
+delete them if you no longer need them.
 
 ## Credits
 
