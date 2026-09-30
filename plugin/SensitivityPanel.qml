@@ -11,6 +11,8 @@ Item {
   property var draft: null
   property var bounds: ({ min: 100, max: 25600, step: 50 })
   property var rates: []
+  // The sensor's DPI right now, which the DPI buttons change without saving; 0 unknown.
+  property int liveDpi: 0
   property int stage: 0
 
   // `immediate` is false for typed values, which save after a pause.
@@ -78,6 +80,21 @@ Item {
         opacity: 0.6
         wrapMode: Text.Wrap
         text: "Drag a level to change it, or away from the bar to remove it. Click the bar to add a level. The DPI buttons step through the levels from low to high."
+      }
+
+      Row {
+        spacing: Style.spacing.lg
+
+        Label {
+          text: "Current on mouse: " + (panel.liveDpi > 0 ? panel.liveDpi + " DPI" : "—")
+          color: Color.accent
+          font.bold: true
+        }
+
+        Label {
+          text: "Saved default: " + (panel.draft ? panel.draft.defaultDpi + " DPI" : "—")
+          opacity: 0.6
+        }
       }
 
       DpiTrack {

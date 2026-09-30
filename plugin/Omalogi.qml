@@ -62,6 +62,7 @@ Item {
   property var pendingOpen: null
 
   property bool loading: false
+  property bool livePolling: false
   // At most one write is in flight; edits made meanwhile are saved after it.
   property bool saving: false
   property bool undoing: false
@@ -479,10 +480,40 @@ Item {
   function daemonUpdated(state) {
     var previous = root.daemon
     root.daemon = state
-    // The daemon switched profiles: its state names the new one, so no read is needed.
+    // The daemon saw the profile change: its state names the new one, so no read is needed.
     var switched = state !== null && state.active_profile !== null
       && (previous === null || previous.active_profile !== state.active_profile)
-    if (root.ready && switched) root.onboard = Model.withActive(root.onboard, state.active_profile - 1)
+    if (root.ready && switched) root.observeActive(state.active_profile - 1)
+  }
+
+  function observeActive(position) {
+    var next = Model.observedActive(root.onboard, position, root.cursor,
+      root.dirty || root.saving || root.undoing || saveTimer.running)
+    if (next === null) return
+    root.onboard = next.onboard
+    if (next.reloadDraft) {
+      root.cursor = next.cursor
+      root.loadDraft()
+    }
+  }
+
+  // Two short requests, so the header's DPI and the active profile follow the mouse's
+  // buttons even without the daemon.
+  function refreshLive() {
+    if (!Model.canPollLive({
+      opened: root.opened, ready: root.ready, livePolling: root.livePolling,
+      loading: root.loading, saving: root.saving, undoing: root.undoing,
+      dirty: root.dirty, savePending: saveTimer.running, inFlight: server.inFlight
+    })) return
+    root.livePolling = true
+    server.request({ cmd: "live" }, function(ok, result) {
+      root.livePolling = false
+      if (ok && root.opened && root.info !== null) {
+        root.info = Model.withLiveDpi(root.info, result.dpi)
+        if (result.active_profile !== null) root.observeActive(result.active_profile - 1)
+      }
+      root.stopServerWhenIdle()
+    })
   }
 
   OmalogiServer {
@@ -499,6 +530,13 @@ Item {
     id: saveTimer
     interval: 700
     onTriggered: root.save()
+  }
+
+  Timer {
+    interval: 2000
+    running: root.opened && root.ready
+    repeat: true
+    onTriggered: root.refreshLive()
   }
 
   // Needs no device, so it runs as its own command.
@@ -731,6 +769,7 @@ Item {
             }
 
             Dropdown {
+              id: profileDropdown
               anchors.verticalCenter: parent.verticalCenter
               width: Style.space(260)
               showLabel: false
@@ -738,7 +777,12 @@ Item {
               options: root.profileOptions
               value: String(root.cursor)
               fontFamily: Style.font.menuFamily
-              onChanged: function(value) { root.selectProfile(Number(value)) }
+              onChanged: function(value) {
+                root.selectProfile(Number(value))
+                // A pick assigns `value`, which drops the binding; restore it so the label
+                // keeps following the editor when a profile switch on the mouse moves it.
+                profileDropdown.value = Qt.binding(function() { return String(root.cursor) })
+              }
             }
 
             // The profile list already says which profile is in use, so the button only
@@ -1189,6 +1233,7 @@ Item {
               width: Math.min(parent.width - root.railWidth - Style.space(80), Style.space(1000))
               visible: !root.assignments
               draft: root.draft
+              liveDpi: root.info ? root.info.dpi : 0
               bounds: Model.dpiBounds(root.info)
               rates: root.info && root.info.report_rates_hz ? root.info.report_rates_hz : []
               onEdited: function(next, immediate) { root.updateDraft(next, immediate) }

@@ -66,7 +66,7 @@ function staleShell(manifest) {
 }
 
 // The oldest `omalogi serve` request format this plugin works with.
-var REQUIRED_PROTOCOL = 3
+var REQUIRED_PROTOCOL = 4
 
 // What stops Omalogi reaching the mouse, from a failed load's message: "helper" (not
 // installed), "access" (no permission), "device" (no mouse), or "error".
@@ -897,6 +897,34 @@ function withActive(onboard, position) {
       return copy
     })
   }
+}
+
+// Follows a profile switch made on the mouse. The editor moves along only when it shows
+// the active profile and has nothing unsaved; null when nothing changed.
+function observedActive(onboard, position, cursor, editing) {
+  if (!onboard || position < 0 || position >= onboard.profiles.length
+      || onboard.active_position === position) return null
+  var follow = cursor === onboard.active_position && !editing
+  return {
+    onboard: withActive(onboard, position),
+    cursor: follow ? position : cursor,
+    reloadDraft: follow
+  }
+}
+
+// Polls `live` only when its reply cannot interrupt an edit or another request.
+function canPollLive(state) {
+  return state.opened && state.ready && !state.livePolling && !state.loading
+    && !state.saving && !state.undoing && !state.dirty && !state.savePending
+    && state.inFlight === 0
+}
+
+// `info` with the sensor's DPI from `live`; the same object when it did not change.
+function withLiveDpi(info, dpi) {
+  if (info.dpi === dpi) return info
+  var copy = Object.assign({}, info)
+  copy.dpi = dpi
+  return copy
 }
 
 // Picture views from `omalogi picture`, or [] when there is no usable picture.

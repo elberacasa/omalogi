@@ -557,6 +557,49 @@ test("withSlot and withActive update profiles without a full read", () => {
   assert.equal(onboard.profiles[0].active, true, "the original is not mutated")
 })
 
+test("physical profile changes follow the active editor only when it is idle", () => {
+  const onboard = {
+    mode: "onboard", description: {}, active_position: 0,
+    profiles: [0, 1, 2].map((position) => ({ position, active: position === 0 }))
+  }
+  const followed = plain(Model.observedActive(onboard, 2, 0, false))
+  assert.equal(followed.cursor, 2)
+  assert.equal(followed.reloadDraft, true)
+  assert.deepEqual(followed.onboard.profiles.map((slot) => slot.active), [false, false, true])
+
+  for (const [cursor, editing] of [[1, false], [0, true]]) {
+    const kept = plain(Model.observedActive(onboard, 2, cursor, editing))
+    assert.equal(kept.cursor, cursor)
+    assert.equal(kept.reloadDraft, false)
+    assert.equal(kept.onboard.active_position, 2)
+  }
+  assert.equal(Model.observedActive(onboard, 0, 0, false), null)
+  assert.equal(Model.observedActive(onboard, 3, 0, false), null)
+  assert.equal(Model.observedActive(onboard, -1, 0, false), null, "no active profile")
+  assert.equal(onboard.active_position, 0)
+})
+
+test("live polling waits for an idle open editor", () => {
+  const idle = {
+    opened: true, ready: true, livePolling: false, loading: false,
+    saving: false, undoing: false, dirty: false, savePending: false, inFlight: 0
+  }
+  assert.equal(Model.canPollLive(idle), true)
+  for (const [key, value] of Object.entries({
+    opened: false, ready: false, livePolling: true, loading: true,
+    saving: true, undoing: true, dirty: true, savePending: true, inFlight: 1
+  })) {
+    assert.equal(Model.canPollLive({ ...idle, [key]: value }), false, key)
+  }
+})
+
+test("withLiveDpi changes only the reported DPI", () => {
+  const info = { name: "G502 X", dpi: 1600, report_rate_hz: 1000 }
+  assert.deepEqual(plain(Model.withLiveDpi(info, 800)), { name: "G502 X", dpi: 800, report_rate_hz: 1000 })
+  assert.equal(Model.withLiveDpi(info, 1600), info, "an unchanged DPI keeps the same object")
+  assert.equal(info.dpi, 1600, "the original is not mutated")
+})
+
 test("the DPI bar places levels, ticks and roles", () => {
   const bounds = { min: 100, max: 25600, step: 50 }
   const draft = Model.draftFromSlot(editableSlot())
@@ -640,7 +683,8 @@ test("the setup screen names the one step that reaches the mouse", () => {
   assert.equal(Model.helperOutdated({ info: {}, onboard: {} }), true, "helpers that do not report a protocol speak 1, older than this plugin needs")
   assert.equal(Model.helperOutdated({ helper: { version: "0.1.9", protocol: 1 } }), true)
   assert.equal(Model.helperOutdated({ helper: { version: "0.2.0", protocol: 2 } }), true)
-  assert.equal(Model.helperOutdated({ helper: { version: "0.3.0", protocol: 3 } }), false)
+  assert.equal(Model.helperOutdated({ helper: { version: "0.3.5", protocol: 3 } }), true, "helpers before protocol 4 cannot answer live")
+  assert.equal(Model.helperOutdated({ helper: { version: "0.3.6", protocol: 4 } }), false)
   assert.equal(Model.helperOutdated({ helper: { version: "0.0.1", protocol: 0.5 } }), true)
   assert.equal(Model.helperInstallCommand("/home/me/.config/omarchy/plugins/io.github.elberacasa.omalogi/install.sh"),
     "bash '/home/me/.config/omarchy/plugins/io.github.elberacasa.omalogi/install.sh'")
