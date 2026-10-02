@@ -18,8 +18,8 @@ set -euo pipefail
 # Both are part of the reviewed source, so the helper installed is the one reviewed with
 # this plugin, never whatever release is newest. The release's own .sha256 file is not
 # used. Updated by the release steps in CONTRIBUTING.md.
-HELPER_VERSION=0.3.5
-HELPER_SHA256=68bdf19d71518712335de0b5c5900ee2a2b76b314a2520df5492e6b3252529c4
+HELPER_VERSION=0.3.6
+HELPER_SHA256=7575864bc16001b95702bfed3828545e32f0b969a8784e7403a3e337d656713e
 
 BIN_DIR=${OMALOGI_BIN_DIR:-$HOME/.local/bin}
 RULE=/etc/udev/rules.d/70-omalogi.rules
