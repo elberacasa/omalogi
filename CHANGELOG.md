@@ -5,6 +5,8 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+## [0.3.6] - 2026-10-02
+
 ### Security
 
 - The helper installer no longer installs whatever release is newest. `install.sh` pins
@@ -14,8 +16,27 @@ All notable changes are listed here. The project follows
   release needs both `OMALOGI_VERSION` and `OMALOGI_SHA256`. Raised in the plugin
   marketplace's review.
 
+### Added
+
+- The G502 X Lightspeed's button positions are verified, so the overlay draws its picture
+  with a marker on each button (@mateuspim, #57).
+- A Black/White switch for the mouse picture on models with both renders, with `c` as
+  its key. The choice is kept in `~/.config/omalogi/appearance.ini`, and the white files
+  are downloaded and checked only once picked (@mateuspim, #58).
+- The overlay follows the mouse while it is open: the profile in use and the live DPI
+  track the mouse's own buttons, and Sensitivity shows the DPI on the mouse next to the
+  profile's saved default. It polls a new `live` request of two short device reads,
+  about 4 ms on a wired G502 X, and only while it is idle; `omalogi serve` speaks
+  protocol 4 (@mateuspim, #59).
+
 ### Fixed
 
+- Buttons are labelled with the names printed on the mouse. The overlay named them
+  `G<slot + 1>`, which is wrong for six buttons of the G502 X family: the sniper button
+  read G5 instead of G6, and the wheel tilts and left-edge buttons were swapped too
+  (@mateuspim, #57).
+- Picking a profile in the overlay's dropdown no longer stops the list following the
+  editor when the profile in use changes on the mouse (@mateuspim, #59).
 - A firmware-action binding now has a text form whatever bytes it is stored with, and
   writing that text back writes nothing. #50 made the binding after a firmware action's
   code opaque so it would survive a round trip, which also left every mouse that stores
