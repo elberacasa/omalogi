@@ -1259,9 +1259,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-core"
-version = "0.8.9"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfaaf6bed87efbdac9a66e767492020d4427e4b1126a1505e9e5d71065b82557"
+checksum = "779e9192e32f16c6bb907678f99b8b6b2b2054da20759b6cc8de68a829930fcf"
 dependencies = [
  "atomic-write-file",
  "az",
@@ -1302,9 +1302,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-device-registry"
-version = "0.8.9"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da9f498b18e90443bf7b507593a28d2ba58a6b88796970855f9c51c2fffa5ab0"
+checksum = "c2c4b442c6ed8ed9265138d742908882724d64dd1e96700a88a0fbee3f1770c9"
 
 [[package]]
 name = "openlogi-fixture"
@@ -1343,9 +1343,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp"
-version = "0.8.9"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94e9f71ec078b0538ef8c346de1891e4f65702da5f52a582dfaa3a9d0888978f"
+checksum = "c7e965a7d050ed8400ca4313fedb5152fb555f09d9774655242d5e3a6d65a1fb"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1365,9 +1365,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp-derive"
-version = "0.8.9"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "338f034c7f90d4ed6cbc180491b143b2f63ac353e1486638731e3aa0c31cd5b6"
+checksum = "fd459a05c50d3da37f168fad95bb18681aac9877881f85b425b202c6d03e6b48"
 dependencies = [
  "proc-macro2",
  "quote",
