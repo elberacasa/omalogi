@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -39,7 +40,7 @@ Item {
 
   component Caption: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Commons.Color.menu.text
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.caption
   }
@@ -52,7 +53,7 @@ Item {
     y: track.lineY - height / 2
     height: Style.space(4)
     radius: height / 2
-    color: Util.alpha(Color.menu.text, 0.14)
+    color: Util.alpha(Commons.Color.menu.text, 0.14)
   }
 
   // The range the levels cover.
@@ -65,7 +66,7 @@ Item {
     y: line.y
     height: line.height
     radius: line.radius
-    color: Util.alpha(Color.accent, 0.45)
+    color: Util.alpha(Commons.Color.accent, 0.45)
   }
 
   MouseArea {
@@ -97,7 +98,7 @@ Item {
         y: -Style.space(8)
         width: Math.max(1, Style.normalBorderWidth)
         height: Style.space(5)
-        color: Util.alpha(Color.menu.text, 0.3)
+        color: Util.alpha(Commons.Color.menu.text, 0.3)
       }
 
       Caption {
@@ -129,7 +130,7 @@ Item {
         y: track.lineY - track.nodeSize - Style.space(22)
         textFormat: Text.PlainText
         text: node.shownDpi
-        color: node.modelData.isDefault ? Color.accent : Color.menu.text
+        color: node.modelData.isDefault ? Commons.Color.accent : Commons.Color.menu.text
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.body
         font.bold: node.isSelected
@@ -142,9 +143,9 @@ Item {
         width: size
         height: size
         radius: size / 2
-        color: node.modelData.isDefault ? Color.accent : Color.menu.background
+        color: node.modelData.isDefault ? Commons.Color.accent : Commons.Color.menu.background
         border.width: node.modelData.isShift ? Math.max(3, Style.space(3)) : Math.max(2, Style.normalBorderWidth)
-        border.color: node.modelData.isShift || node.isSelected ? Color.accent : Color.menu.text
+        border.color: node.modelData.isShift || node.isSelected ? Commons.Color.accent : Commons.Color.menu.text
 
         Behavior on width { NumberAnimation { duration: 90 } }
       }
@@ -153,7 +154,7 @@ Item {
         x: Math.max(-node.x, Math.min(track.width - node.x - width, -width / 2))
         y: track.tagY
         visible: node.modelData.isDefault || node.modelData.isShift || node.dragging && track.dragRemoving
-        color: node.dragging && track.dragRemoving ? Color.urgent : Color.accent
+        color: node.dragging && track.dragRemoving ? Commons.Color.urgent : Commons.Color.accent
         text: node.dragging && track.dragRemoving
           ? "Remove"
           : [node.modelData.isDefault ? "Default" : "", node.modelData.isShift ? "Shift" : ""]

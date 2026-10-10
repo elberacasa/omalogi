@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -48,7 +49,7 @@ BarWidget {
     iconComponent: Component {
       PixelMark {
         ink: button.foreground
-        accent: button.active ? Color.accent : button.foreground
+        accent: button.active ? Commons.Color.accent : button.foreground
         busy: rolling.running
         opacity: root.activeProfile !== "" ? 1 : 0.5
       }

@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -94,7 +95,7 @@ Item {
 
   component Caption: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Commons.Color.menu.text
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.caption
   }
@@ -137,7 +138,7 @@ Item {
         Icon {
           anchors.verticalCenter: parent.verticalCenter
           name: Model.actionIcon(label.entry.action)
-          tint: label.selected || label.entry.changed || label.dropping ? Color.accent : Color.menu.text
+          tint: label.selected || label.entry.changed || label.dropping ? Commons.Color.accent : Commons.Color.menu.text
           size: Style.space(15)
         }
 
@@ -147,7 +148,7 @@ Item {
           textFormat: Text.PlainText
           text: label.entry.label
           elide: Text.ElideRight
-          color: label.selected || label.entry.changed || label.dropping ? Color.accent : Color.menu.text
+          color: label.selected || label.entry.changed || label.dropping ? Commons.Color.accent : Commons.Color.menu.text
           font.family: Style.font.menuFamily
           font.pixelSize: Style.font.body
           font.bold: label.selected
@@ -192,8 +193,8 @@ Item {
       onPaint: {
         var ctx = getContext("2d")
         ctx.reset()
-        var dim = canvas.css(Util.alpha(Color.menu.text, 0.28))
-        var accent = canvas.css(Color.accent)
+        var dim = canvas.css(Util.alpha(Commons.Color.menu.text, 0.28))
+        var accent = canvas.css(Commons.Color.accent)
         function draw(card, onLeft) {
           if (canvas.entryBySlot[card.slot] === undefined) return
           var hot = canvas.hot(card.slot)
@@ -244,9 +245,9 @@ Item {
           width: dotDrop.containsDrag ? Style.space(20) : (dot.hot ? Style.space(15) : Style.space(11))
           height: width
           radius: width / 2
-          color: dot.hot ? Color.accent : Color.menu.text
+          color: dot.hot ? Commons.Color.accent : Commons.Color.menu.text
           border.width: Math.max(2, Style.normalBorderWidth)
-          border.color: Color.menu.background
+          border.color: Commons.Color.menu.background
 
           Behavior on width { NumberAnimation { duration: 90 } }
         }
@@ -315,10 +316,10 @@ Item {
         height: canvas.switcherHeight - Style.spacing.sm * 2
         radius: Style.cornerRadius
         color: current
-          ? Util.alpha(Color.accent, 0.12)
-          : Util.alpha(Color.menu.text, tileArea.containsMouse || tileDrop.containsDrag ? 0.08 : 0.03)
+          ? Util.alpha(Commons.Color.accent, 0.12)
+          : Util.alpha(Commons.Color.menu.text, tileArea.containsMouse || tileDrop.containsDrag ? 0.08 : 0.03)
         border.width: current ? Math.max(2, Style.normalBorderWidth) : Math.max(1, Style.normalBorderWidth)
-        border.color: current ? Color.accent : Util.alpha(Color.menu.text, 0.14)
+        border.color: current ? Commons.Color.accent : Util.alpha(Commons.Color.menu.text, 0.14)
 
         Image {
           anchors.top: parent.top
@@ -343,7 +344,7 @@ Item {
           anchors.horizontalCenter: parent.horizontalCenter
           font.letterSpacing: 1.5
           font.bold: tile.current
-          color: tile.current ? Color.accent : Color.menu.text
+          color: tile.current ? Commons.Color.accent : Commons.Color.menu.text
           opacity: tile.current ? 1 : 0.6
           text: String(tile.modelData.name).toUpperCase()
         }
@@ -377,22 +378,22 @@ Item {
     Caption {
       anchors.verticalCenter: parent.verticalCenter
       text: "BLACK"
-      color: canvas.whiteSelected ? Color.menu.text : Color.accent
+      color: canvas.whiteSelected ? Commons.Color.menu.text : Commons.Color.accent
       opacity: canvas.whiteSelected ? 0.6 : 1
     }
 
     ToggleSwitch {
       anchors.verticalCenter: parent.verticalCenter
       checked: canvas.whiteSelected
-      foreground: Color.menu.text
-      accent: Color.accent
+      foreground: Commons.Color.menu.text
+      accent: Commons.Color.accent
       onToggled: canvas.colorRequested(!canvas.whiteSelected)
     }
 
     Caption {
       anchors.verticalCenter: parent.verticalCenter
       text: "WHITE"
-      color: canvas.whiteSelected ? Color.accent : Color.menu.text
+      color: canvas.whiteSelected ? Commons.Color.accent : Commons.Color.menu.text
       opacity: canvas.whiteSelected ? 1 : 0.6
     }
   }
@@ -428,7 +429,7 @@ Item {
       font.letterSpacing: 1.5
       font.bold: !canvas.gshift
       opacity: canvas.gshift ? 0.5 : 1
-      color: canvas.gshift ? Color.menu.text : Color.accent
+      color: canvas.gshift ? Commons.Color.menu.text : Commons.Color.accent
       text: "DEFAULT"
 
       MouseArea {
@@ -441,8 +442,8 @@ Item {
     ToggleSwitch {
       anchors.verticalCenter: parent.verticalCenter
       checked: canvas.gshift
-      foreground: Color.menu.text
-      accent: Color.accent
+      foreground: Commons.Color.menu.text
+      accent: Commons.Color.accent
       onToggled: canvas.layerRequested(!canvas.gshift)
     }
 
@@ -451,7 +452,7 @@ Item {
       font.letterSpacing: 1.5
       font.bold: canvas.gshift
       opacity: canvas.gshift ? 1 : 0.5
-      color: canvas.gshift ? Color.accent : Color.menu.text
+      color: canvas.gshift ? Commons.Color.accent : Commons.Color.menu.text
       text: "G-SHIFT"
 
       MouseArea {
@@ -480,9 +481,9 @@ Item {
       return Math.max(0, Math.min(below, canvas.height - canvas.footerHeight - height))
     }
     radius: Style.cornerRadius
-    color: Color.menu.background
+    color: Commons.Color.menu.background
     border.width: Math.max(1, Style.normalBorderWidth)
-    border.color: Util.alpha(Color.accent, 0.7)
+    border.color: Util.alpha(Commons.Color.accent, 0.7)
 
     // Keeps clicks inside the menu from clearing the selection.
     MouseArea { anchors.fill: parent }
@@ -498,7 +499,7 @@ Item {
       height: Style.space(34)
       radius: Style.cornerRadius
       opacity: enabled ? 1 : 0.4
-      color: itemArea.containsMouse && enabled ? Util.alpha(Color.menu.text, 0.08) : "transparent"
+      color: itemArea.containsMouse && enabled ? Util.alpha(Commons.Color.menu.text, 0.08) : "transparent"
 
       Icon {
         id: itemIcon
@@ -518,7 +519,7 @@ Item {
         textFormat: Text.PlainText
         elide: Text.ElideRight
         text: item.detail === "" ? item.text : item.text + "  ·  " + item.detail
-        color: Color.menu.text
+        color: Commons.Color.menu.text
         font.family: Style.font.menuFamily
         font.pixelSize: Style.font.bodySmall
       }
@@ -547,7 +548,7 @@ Item {
         Icon {
           anchors.verticalCenter: parent.verticalCenter
           name: canvas.selectedEntry ? Model.actionIcon(canvas.selectedEntry.action) : ""
-          tint: Color.accent
+          tint: Commons.Color.accent
           size: Style.space(18)
         }
 
@@ -557,7 +558,7 @@ Item {
           textFormat: Text.PlainText
           elide: Text.ElideRight
           text: canvas.selectedEntry ? canvas.selectedEntry.name + "  ·  " + canvas.selectedEntry.label : ""
-          color: Color.menu.text
+          color: Commons.Color.menu.text
           font.family: Style.font.menuFamily
           font.pixelSize: Style.font.body
           font.bold: true

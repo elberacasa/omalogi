@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -52,7 +53,7 @@ Item {
 
   component Label: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Commons.Color.menu.text
     elide: Text.ElideRight
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.body
@@ -90,7 +91,7 @@ Item {
       width: parent.width
       wrapMode: Text.Wrap
       opacity: library.unreachable ? 1 : 0.7
-      color: library.unreachable ? Color.accent : Color.menu.text
+      color: library.unreachable ? Commons.Color.accent : Commons.Color.menu.text
       text: {
         if (library.unreachable)
           return "No button holds G-Shift on this profile, so these actions can't be used yet. Give a button the G-Shift action on the Default layer first."
@@ -104,7 +105,7 @@ Item {
       id: search
       width: parent.width
       placeholderText: "Search actions"
-      foreground: Color.menu.text
+      foreground: Commons.Color.menu.text
       onTextChanged: library.query = text
       Keys.onEscapePressed: {
         text = ""
@@ -132,7 +133,7 @@ Item {
             id: tabText
             textFormat: Text.PlainText
             text: tab.modelData.toUpperCase()
-            color: tab.selected ? Color.menu.text : Color.menu.text
+            color: tab.selected ? Commons.Color.menu.text : Commons.Color.menu.text
             opacity: tab.selected ? 1 : (tabArea.containsMouse ? 0.8 : 0.5)
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.caption
@@ -146,7 +147,7 @@ Item {
             anchors.bottom: parent.bottom
             height: Math.max(2, Style.space(2))
             visible: tab.selected
-            color: Color.accent
+            color: Commons.Color.accent
           }
 
           MouseArea {
@@ -170,9 +171,9 @@ Item {
     height: Style.space(120)
     visible: library.recording
     radius: Style.cornerRadius
-    color: Util.alpha(Color.menu.text, 0.04)
+    color: Util.alpha(Commons.Color.menu.text, 0.04)
     border.width: Math.max(2, Style.normalBorderWidth)
-    border.color: Color.accent
+    border.color: Commons.Color.accent
 
     Column {
       anchors.centerIn: parent
@@ -186,7 +187,7 @@ Item {
         Icon {
           anchors.verticalCenter: parent.verticalCenter
           name: "keyboard"
-          tint: Color.accent
+          tint: Commons.Color.accent
           size: Style.space(22)
         }
 
@@ -287,10 +288,10 @@ Item {
         anchors.bottomMargin: Style.space(2)
         radius: Style.cornerRadius
         color: row.current
-          ? Util.alpha(Color.accent, 0.15)
-          : (area.containsMouse ? Util.alpha(Color.menu.text, 0.08) : "transparent")
+          ? Util.alpha(Commons.Color.accent, 0.15)
+          : (area.containsMouse ? Util.alpha(Commons.Color.menu.text, 0.08) : "transparent")
         border.width: row.current ? Math.max(1, Style.normalBorderWidth) : 0
-        border.color: Util.alpha(Color.accent, 0.6)
+        border.color: Util.alpha(Commons.Color.accent, 0.6)
 
         Icon {
           id: rowIcon
@@ -298,7 +299,7 @@ Item {
           anchors.leftMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
           name: row.isAction ? Model.actionIcon(row.modelData.value) : ""
-          tint: row.current ? Color.accent : Color.menu.text
+          tint: row.current ? Commons.Color.accent : Commons.Color.menu.text
           size: Style.space(18)
         }
 
@@ -309,7 +310,7 @@ Item {
           anchors.rightMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
           text: row.isShortcut ? "Record a shortcut…" : (row.isAction ? row.modelData.label : "")
-          color: row.current ? Color.accent : Color.menu.text
+          color: row.current ? Commons.Color.accent : Commons.Color.menu.text
         }
 
         Label {

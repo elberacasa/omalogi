@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -596,7 +597,7 @@ Item {
 
   component Label: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Commons.Color.menu.text
     elide: Text.ElideRight
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.body
@@ -613,7 +614,7 @@ Item {
     width: root.railWidth - Style.spacing.sm
     height: width
     radius: Style.cornerRadius
-    color: selected ? Util.alpha(Color.accent, 0.18) : (railArea.containsMouse ? Util.alpha(Color.menu.text, 0.08) : "transparent")
+    color: selected ? Util.alpha(Commons.Color.accent, 0.18) : (railArea.containsMouse ? Util.alpha(Commons.Color.menu.text, 0.08) : "transparent")
 
     Rectangle {
       anchors.left: parent.left
@@ -622,13 +623,13 @@ Item {
       height: parent.height * 0.5
       radius: width / 2
       visible: railButton.selected
-      color: Color.accent
+      color: Commons.Color.accent
     }
 
     Icon {
       anchors.centerIn: parent
       name: railButton.icon
-      tint: railButton.selected ? Color.accent : Color.menu.text
+      tint: railButton.selected ? Commons.Color.accent : Commons.Color.menu.text
       size: Style.space(22)
     }
 
@@ -658,7 +659,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Color.menu.scrim
+      color: Commons.Color.menu.scrim
       opacity: card.opacity
     }
 
@@ -673,8 +674,8 @@ Item {
       height: root.cardHeight
       anchors.centerIn: parent
       radius: Style.cornerRadius
-      color: Color.menu.background
-      borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
+      color: Commons.Color.menu.background
+      borderSpec: Border.surfaceSpec("menu", "border", Commons.Color.menu.border, Math.max(1, Style.space(2)))
       padding: Style.spacing.panelPadding
       opacity: 0
 
@@ -794,7 +795,7 @@ Item {
               bordered: true
               enabled: root.selected !== null && root.selected.enabled && !root.selected.active
               opacity: enabled ? 1 : 0.5
-              foreground: Color.menu.text
+              foreground: Commons.Color.menu.text
               fontFamily: Style.font.menuFamily
               onClicked: root.activate()
             }
@@ -824,15 +825,15 @@ Item {
               width: badgeLabel.implicitWidth + Style.spacing.md * 2
               height: badgeLabel.implicitHeight + Style.spacing.xs * 2
               radius: height / 2
-              color: badgeArea.containsMouse ? Util.alpha(Color.accent, 0.16) : "transparent"
+              color: badgeArea.containsMouse ? Util.alpha(Commons.Color.accent, 0.16) : "transparent"
               border.width: Math.max(1, Style.normalBorderWidth)
-              border.color: Color.accent
+              border.color: Commons.Color.accent
 
               Label {
                 id: badgeLabel
                 anchors.centerIn: parent
                 text: root.supportBadge ? root.supportBadge.text + "  ·  " + root.supportBadge.action : ""
-                color: Color.accent
+                color: Commons.Color.accent
                 font.pixelSize: Style.font.caption
               }
 
@@ -860,7 +861,7 @@ Item {
               text: "Uninstall"
               opacity: hot ? 1 : 0.55
               fontSize: Style.font.caption
-              foreground: Color.menu.text
+              foreground: Commons.Color.menu.text
               fontFamily: Style.font.menuFamily
               onClicked: root.askUninstall()
             }
@@ -874,8 +875,8 @@ Item {
           opened: root.uninstallOpen
           message: "Uninstall Omalogi? The helper, its daemon, the udev rule and this plugin are removed. Your mouse keeps its profiles, and your backups are kept."
           confirmText: "Uninstall"
-          background: Color.menu.background
-          foreground: Color.menu.text
+          background: Commons.Color.menu.background
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onCanceled: root.uninstallOpen = false
           onConfirmed: root.uninstall()
@@ -886,7 +887,7 @@ Item {
           anchors.fill: parent
           z: 100
           visible: root.acceptOpen
-          color: Util.alpha(Color.menu.background, 0.82)
+          color: Util.alpha(Commons.Color.menu.background, 0.82)
 
           // A click outside the dialog closes it without saving.
           MouseArea {
@@ -899,9 +900,9 @@ Item {
             width: Math.min(parent.width - Style.space(48), Style.space(520))
             height: acceptColumn.implicitHeight + Style.spacing.lg * 2
             radius: Style.cornerRadius
-            color: Color.menu.background
+            color: Commons.Color.menu.background
             border.width: Math.max(1, Style.normalBorderWidth)
-            border.color: Util.alpha(Color.accent, 0.7)
+            border.color: Util.alpha(Commons.Color.accent, 0.7)
 
             // Keeps clicks inside the dialog from closing it.
             MouseArea { anchors.fill: parent }
@@ -944,14 +945,14 @@ Item {
                 Button {
                   text: "Edit it"
                   bordered: true
-                  foreground: Color.accent
+                  foreground: Commons.Color.accent
                   onClicked: root.acceptUntested()
                 }
 
                 Button {
                   text: "Not now"
                   bordered: true
-                  foreground: Color.menu.text
+                  foreground: Commons.Color.menu.text
                   onClicked: root.acceptOpen = false
                 }
               }
@@ -989,7 +990,7 @@ Item {
               width: Style.space(8)
               height: width
               radius: width / 2
-              color: Color.accent
+              color: Commons.Color.accent
             }
 
             Label {
@@ -1003,7 +1004,7 @@ Item {
                 : root.notice !== "" ? root.notice
                 : daemonProblem
               color: !busy && ((root.notice !== "" && root.noticeIsError) || (root.notice === "" && daemonProblem !== ""))
-                ? Color.urgent : Color.menu.text
+                ? Commons.Color.urgent : Commons.Color.menu.text
             }
           }
 
@@ -1031,7 +1032,7 @@ Item {
               bordered: true
               enabled: !root.saving && !root.undoing
               opacity: enabled ? 1 : 0.5
-              foreground: Color.menu.text
+              foreground: Commons.Color.menu.text
               fontFamily: Style.font.menuFamily
               onClicked: root.undo()
             }
@@ -1097,14 +1098,14 @@ Item {
                 visible: setupCard.copy.action !== ""
                 text: setupCard.copy.action
                 bordered: true
-                foreground: Color.accent
+                foreground: Commons.Color.accent
                 onClicked: root.runSetupAction()
               }
 
               Button {
                 text: "Try again"
                 bordered: true
-                foreground: Color.menu.text
+                foreground: Commons.Color.menu.text
                 onClicked: root.retry()
               }
             }
@@ -1153,7 +1154,7 @@ Item {
               anchors.top: parent.top
               anchors.bottom: parent.bottom
               width: Style.normalBorderWidth
-              color: Util.alpha(Color.menu.border, 0.28)
+              color: Util.alpha(Commons.Color.menu.border, 0.28)
             }
 
             // Assignments: the library, and the mouse.
@@ -1191,7 +1192,7 @@ Item {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 width: Style.normalBorderWidth
-                color: Util.alpha(Color.menu.border, 0.28)
+                color: Util.alpha(Commons.Color.menu.border, 0.28)
               }
 
               DeviceCanvas {
@@ -1258,9 +1259,9 @@ Item {
               width: dragRow.implicitWidth + Style.spacing.md * 2
               height: Style.space(36)
               radius: Style.cornerRadius
-              color: Color.menu.background
+              color: Commons.Color.menu.background
               border.width: Math.max(2, Style.normalBorderWidth)
-              border.color: Color.accent
+              border.color: Commons.Color.accent
               Drag.active: dragging
               Drag.keys: ["omalogi-action"]
               Drag.hotSpot.x: width / 2
@@ -1274,7 +1275,7 @@ Item {
                 Icon {
                   anchors.verticalCenter: parent.verticalCenter
                   name: Model.actionIcon(dragProxy.action)
-                  tint: Color.accent
+                  tint: Commons.Color.accent
                   size: Style.space(18)
                 }
 

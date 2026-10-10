@@ -13,6 +13,12 @@ All notable changes are listed here. The project follows
   replies. Nothing else in the path to the mouse changed for Omalogi, and reads on a
   G502 X are identical to 0.8.9.
 
+### Fixed
+
+- The overlay keeps its theme colors under Qt 6.12, which adds a `Color` type to
+  `QtQuick` that hides the shell's palette singleton of the same name. Every palette
+  reference now goes through `Commons.Color`, as Omarchy asks of shell plugins.
+
 ## [0.3.6] - 2026-10-02
 
 ### Security

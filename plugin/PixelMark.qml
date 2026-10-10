@@ -1,5 +1,5 @@
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 // Omalogi's mark: a wired mouse on a 16 × 16 grid, drawn in whole pixels. While `busy`,
 // the scroll wheel rolls and the cable sways, as in the README logo
@@ -7,8 +7,8 @@ import qs.Commons
 Canvas {
   id: mark
 
-  property color ink: Color.menu.text
-  property color accent: Color.accent
+  property color ink: Commons.Color.menu.text
+  property color accent: Commons.Color.accent
   property bool busy: false
   // Advances while busy; each step is one wheel ridge.
   property int frame: 0

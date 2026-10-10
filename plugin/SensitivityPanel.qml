@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -36,7 +37,7 @@ Item {
 
   component Label: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Commons.Color.menu.text
     elide: Text.ElideRight
     font.family: Style.font.menuFamily
     font.pixelSize: Style.font.body
@@ -72,7 +73,7 @@ Item {
 
       PanelSectionHeader {
         text: "DPI levels"
-        foreground: Color.menu.text
+        foreground: Commons.Color.menu.text
       }
 
       Label {
@@ -87,7 +88,7 @@ Item {
 
         Label {
           text: "Current on mouse: " + (panel.liveDpi > 0 ? panel.liveDpi + " DPI" : "—")
-          color: Color.accent
+          color: Commons.Color.accent
           font.bold: true
         }
 
@@ -122,7 +123,7 @@ Item {
           to: panel.bounds.max
           stepSize: panel.bounds.step
           value: panel.currentDpi
-          foreground: Color.menu.text
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onModified: function(value) { panel.setCurrent(value, false) }
         }
@@ -133,7 +134,7 @@ Item {
           bordered: true
           enabled: panel.draft !== null && panel.currentDpi !== panel.draft.defaultDpi
           opacity: enabled ? 1 : 0.4
-          foreground: Color.menu.text
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onClicked: panel.edited(Model.setField(panel.draft, "defaultDpi", panel.currentDpi), true)
         }
@@ -144,7 +145,7 @@ Item {
           bordered: true
           enabled: panel.draft !== null && panel.currentDpi !== panel.draft.shiftDpi
           opacity: enabled ? 1 : 0.4
-          foreground: Color.menu.text
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onClicked: panel.edited(Model.setField(panel.draft, "shiftDpi", panel.currentDpi), true)
         }
@@ -155,7 +156,7 @@ Item {
           iconText: "󰐕"
           bordered: true
           visible: panel.stages.length < 5
-          foreground: Color.menu.text
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onClicked: {
             var dpi = Model.nextStageDpi(panel.draft, panel.bounds)
@@ -172,7 +173,7 @@ Item {
           bordered: true
           enabled: panel.stages.length > 1
           opacity: enabled ? 1 : 0.4
-          foreground: Color.menu.text
+          foreground: Commons.Color.menu.text
           fontFamily: Style.font.menuFamily
           onClicked: {
             var next = Model.removeStageKeepingRoles(panel.draft, panel.current)
@@ -187,7 +188,7 @@ Item {
         width: parent.width
         wrapMode: Text.Wrap
         text: panel.problem
-        color: Color.urgent
+        color: Commons.Color.urgent
       }
     }
 
@@ -197,13 +198,13 @@ Item {
 
       PanelSectionHeader {
         text: "Report rate"
-        foreground: Color.menu.text
+        foreground: Commons.Color.menu.text
       }
 
       ButtonGroup {
         options: panel.rates.map(function(hz) { return { value: String(hz), label: hz + " Hz" } })
         value: panel.draft && panel.draft.rateHz !== null ? String(panel.draft.rateHz) : ""
-        foreground: Color.menu.text
+        foreground: Commons.Color.menu.text
         fontFamily: Style.font.menuFamily
         onChanged: function(value) { panel.edited(Model.setField(panel.draft, "rateHz", Number(value)), true) }
       }
