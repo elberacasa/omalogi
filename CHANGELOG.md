@@ -5,6 +5,14 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Changed
+
+- OpenLogi 0.8.13 (from 0.8.9), with `openlogi-core`, `openlogi-hid` and
+  `openlogi-hidpp` moved together. The HID++ channel now drops the Logitech DJ reports a
+  Unifying receiver sends on the same node instead of counting them as broken HID++
+  replies. Nothing else in the path to the mouse changed for Omalogi, and reads on a
+  G502 X are identical to 0.8.9.
+
 ## [0.3.6] - 2026-10-02
 
 ### Security
