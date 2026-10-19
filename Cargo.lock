@@ -394,76 +394,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
-dependencies = [
- "darling_core",
- "darling_macro",
-]
-
-[[package]]
-name = "darling_core"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d00b9596d185e565c2207a0b01f8bd1a135483d02d9b7b0a54b11da8d53412e"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.20.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
-dependencies = [
- "darling_core",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
-
-[[package]]
-name = "derive_builder"
-version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "507dfb09ea8b7fa618fcf76e953f4f5e192547945816d5358edffe39f6f94947"
-dependencies = [
- "derive_builder_macro",
-]
-
-[[package]]
-name = "derive_builder_core"
-version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "derive_builder_macro"
-version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
-dependencies = [
- "derive_builder_core",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "derive_more"
@@ -633,12 +567,6 @@ checksum = "1d5439a5e4ef14dc761bfe1d6ecbc4ba6fd698814ee65e7e623fa85aa9348dcc"
 dependencies = [
  "icu_locid",
 ]
-
-[[package]]
-name = "fnv"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "futures"
@@ -902,12 +830,6 @@ dependencies = [
  "tinystr",
  "writeable",
 ]
-
-[[package]]
-name = "ident_case"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "ignore"
@@ -1259,9 +1181,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-core"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda5739a09c04df5e105c7b141861b365ac6fcc83368da553c266742d79be973"
+checksum = "1f5b9b7b565c15bc6833e85e3d0d0ea86f84063182811f338a9c5381a0690553"
 dependencies = [
  "atomic-write-file",
  "az",
@@ -1302,9 +1224,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-device-registry"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e267c2a62b03a5c151b2103fab1bbc40c79a94d8e3fe7ffaa2dceaad183ba3e"
+checksum = "ea583c50140d1fd2384a22299b24c5c933c832ad98c49d4add77adf14d4d33b3"
 
 [[package]]
 name = "openlogi-fixture"
@@ -1343,14 +1265,13 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61be4304569859ef3dce6b57aa37b68f694561287df0121bd40dae1338244cd9"
+checksum = "c75f36c5894490de299e027395cb72f2fb1149cd989ec17fcaf9aa2ba442ef84"
 dependencies = [
  "async-channel",
  "async-trait",
  "bitflags 2.13.2",
- "derive_builder",
  "derive_more",
  "futures",
  "futures-timer",
@@ -1365,9 +1286,9 @@ dependencies = [
 
 [[package]]
 name = "openlogi-hidpp-derive"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebab217fee67afdb9bf9d433a3d6c563964174fed3fdae34b3162d70be130058"
+checksum = "2f68f5af5ec6d25f6a74752921a6fbc002871d34d742afe28fdb291b464b9755"
 dependencies = [
  "proc-macro2",
  "quote",
