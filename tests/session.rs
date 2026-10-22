@@ -60,6 +60,33 @@ async fn reads_device_info() {
 }
 
 #[tokio::test]
+async fn info_keeps_going_when_a_firmware_entity_is_not_bcd() {
+    let device = FakeG502x::new().with_non_bcd_firmware_entity();
+    let mut session = Session::connect(
+        device,
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        CLI_SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+    let info = session.info().await.expect("info");
+
+    let firmware: Vec<_> = info.firmware.iter().map(|f| f.version.as_str()).collect();
+    assert_eq!(
+        firmware,
+        [
+            "BL1 59.00.B0002",
+            "U1 60.00.B0009",
+            "unreadable (firmware version is not packed BCD)",
+        ]
+    );
+    assert!(!info.firmware[2].active);
+    assert_eq!(info.dpi, 1600);
+    assert_eq!(info.report_rate_hz, Some(1000));
+}
+
+#[tokio::test]
 async fn reads_onboard_profiles() {
     let (mut session, _, _) = connect().await;
     let state = session.onboard().await.expect("onboard state");

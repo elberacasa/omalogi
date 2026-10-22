@@ -20,6 +20,11 @@ All notable changes are listed here. The project follows
   product. The mouse reports "G502 LIGHTSPEED Wireless Gaming Mouse". The wired
   Hero stays 046d:c08b. Both Lightspeed ids remain untested. The udev rule
   already matches c08d and the LIGHTSPEED receiver c539, so it is unchanged.
+- `omalogi info` no longer stops when one firmware entity's version is not packed
+  BCD. A G502 Lightspeed Softdevice reports build `0x00a9`. openlogi-hidpp 0.8.13
+  rejects that entity, which hid the DPI and report rate and kept the overlay
+  from opening the mouse. The entity is reported as unreadable and the rest of
+  the info is read. OpenLogi 0.8.15+ decodes it (AprilNEA/OpenLogi#1790).
 - The overlay keeps its theme colors under Qt 6.12, which adds a `Color` type to
   `QtQuick` that hides the shell's palette singleton of the same name. Every palette
   reference now goes through `Commons.Color`, as Omarchy asks of shell plugins.
