@@ -15,6 +15,11 @@ All notable changes are listed here. The project follows
 
 ### Fixed
 
+- The G502 Lightspeed (USB 046d:c08d and wireless product id 407f) was named
+  "G502 Hero Wireless", which is libratbag's name for those ids and not the
+  product. The mouse reports "G502 LIGHTSPEED Wireless Gaming Mouse". The wired
+  Hero stays 046d:c08b. Both Lightspeed ids remain untested. The udev rule
+  already matches c08d and the LIGHTSPEED receiver c539, so it is unchanged.
 - The overlay keeps its theme colors under Qt 6.12, which adds a `Color` type to
   `QtQuick` that hides the shell's palette singleton of the same name. Every palette
   reference now goes through `Commons.Color`, as Omarchy asks of shell plugins.
