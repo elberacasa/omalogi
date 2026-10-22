@@ -43,7 +43,8 @@ enum Command {
     Device(DeviceCommand),
     /// List the actions buttons can be bound to, as accepted by `profiles edit --button`.
     Actions,
-    /// Switch onboard profiles automatically as the focused app or monitor changes.
+    /// Switch onboard profiles as the focused app or monitor changes, and apply
+    /// low-resolution scroll for window classes listed in `discrete_scroll`.
     Daemon {
         /// Rules file. Defaults to $XDG_CONFIG_HOME/omalogi/config.toml.
         #[arg(long)]

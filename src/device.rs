@@ -11,7 +11,8 @@ use hidpp::{
     device::{Device, DeviceError},
     feature::{
         CreatableFeature, adjustable_dpi::AdjustableDpiFeature,
-        device_information::DeviceInformationFeature, report_rate::ReportRateFeature,
+        device_information::DeviceInformationFeature, hires_wheel::HiResWheelFeature,
+        report_rate::ReportRateFeature,
     },
     nibble::U4,
     protocol::v20::Hidpp20Error,
@@ -26,6 +27,7 @@ use crate::{
         format::{self, Binding, Description, DirectoryEntry, Profile},
         label,
     },
+    scroll::ScrollResolution,
 };
 
 /// Device index of a device connected directly over USB rather than through a receiver.
@@ -81,6 +83,11 @@ pub enum SessionError {
     SwitchNotApplied {
         requested: usize,
         reported: Option<usize>,
+    },
+    #[error("the wheel stayed at {reported:?} resolution after a request for {requested:?}")]
+    WheelModeNotApplied {
+        requested: ScrollResolution,
+        reported: ScrollResolution,
     },
 }
 
@@ -284,19 +291,31 @@ impl Session {
         let count = feature.get_device_info().await?.entity_count;
         let mut firmware = Vec::with_capacity(count.into());
         for entity in 0..count {
-            let info = feature.get_fw_info(entity).await?;
-            firmware.push(Firmware {
-                kind: format!("{:?}", info.entity_type),
-                // `openlogi-hidpp` already decodes these from packed BCD.
-                version: format!(
-                    "{} {:02}.{:02}.B{:04}",
-                    info.firmware_prefix.trim(),
-                    info.firmware_number,
-                    info.revision,
-                    info.build
-                ),
-                active: info.active,
-            });
+            match feature.get_fw_info(entity).await {
+                Ok(info) => firmware.push(Firmware {
+                    kind: format!("{:?}", info.entity_type),
+                    // `openlogi-hidpp` already decodes these from packed BCD.
+                    version: format!(
+                        "{} {:02}.{:02}.B{:04}",
+                        info.firmware_prefix.trim(),
+                        info.firmware_number,
+                        info.revision,
+                        info.build
+                    ),
+                    active: info.active,
+                }),
+                // 0.8.13 rejects a version field that is not packed BCD, and that used
+                // to fail `info()` before DPI was read. A G502 Lightspeed Softdevice
+                // reports build 0x00a9, which is binary. OpenLogi 0.8.15+ decodes it
+                // (AprilNEA/OpenLogi#1790). Until this pin moves there, keep the other
+                // entities and say this one could not be read.
+                Err(Hidpp20Error::UnsupportedResponse) => firmware.push(Firmware {
+                    kind: format!("entity {entity}"),
+                    version: "unreadable (firmware version is not packed BCD)".to_owned(),
+                    active: false,
+                }),
+                Err(error) => return Err(error.into()),
+            }
         }
         Ok(firmware)
     }
@@ -338,6 +357,47 @@ impl Session {
             .feature::<AdjustableDpiFeature>("adjustable DPI (0x2201)")
             .await?;
         Ok(dpi.get_sensor_dpi(0).await?)
+    }
+
+    /// The live high-resolution wheel mode (HID++ 0x2121), or `None` when the mouse
+    /// has no such feature. This is not stored in an onboard profile.
+    pub async fn wheel_resolution(&mut self) -> Result<Option<ScrollResolution>, SessionError> {
+        let feature = match self
+            .feature::<HiResWheelFeature>("high-resolution wheel (0x2121)")
+            .await
+        {
+            Ok(feature) => feature,
+            Err(SessionError::MissingFeature(_)) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        let mode = feature.get_wheel_mode().await?;
+        ScrollResolution::from_wheel(mode.resolution)
+            .map(Some)
+            .ok_or(SessionError::Request(Hidpp20Error::UnsupportedResponse))
+    }
+
+    /// Sets live wheel resolution, leaving the event target and invert bit as they are.
+    /// The mouse echoes the mode; a mismatch is an error and nothing else is written.
+    pub async fn set_wheel_resolution(
+        &mut self,
+        resolution: ScrollResolution,
+    ) -> Result<(), SessionError> {
+        let feature = self
+            .feature::<HiResWheelFeature>("high-resolution wheel (0x2121)")
+            .await?;
+        let current = feature.get_wheel_mode().await?;
+        let applied = feature
+            .set_wheel_mode(current.target, resolution.to_wheel(), current.inverted)
+            .await?;
+        let reported = ScrollResolution::from_wheel(applied.resolution)
+            .ok_or(SessionError::Request(Hidpp20Error::UnsupportedResponse))?;
+        if reported != resolution {
+            return Err(SessionError::WheelModeNotApplied {
+                requested: resolution,
+                reported,
+            });
+        }
+        Ok(())
     }
 
     /// Sets the sensor's DPI in the mouse's working memory, without writing any onboard

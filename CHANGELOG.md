@@ -5,6 +5,15 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Added
+
+- `discrete_scroll` in the daemon's rules file. Window classes listed there get
+  low-resolution scroll (HID++ 0x2121) while focused, and the previous resolution
+  when focus leaves. Source 2 games such as Dota 2 drop high-resolution wheel
+  events, so the wheel does nothing until this is off. It is live mode, not an
+  onboard profile. The kernel turns high resolution back on when the mouse
+  reconnects, and the daemon applies the override again while the app stays focused.
+
 ### Changed
 
 - OpenLogi 0.8.13 (from 0.8.9), with `openlogi-core`, `openlogi-hid` and
@@ -15,6 +24,15 @@ All notable changes are listed here. The project follows
 
 ### Fixed
 
+- The G502 Lightspeed (USB 046d:c08d and wireless product id 407f) was named
+  "G502 Hero Wireless", which is libratbag's name for those ids and not the
+  product. The mouse reports "G502 LIGHTSPEED Wireless Gaming Mouse". The wired
+  Hero stays 046d:c08b. Both Lightspeed ids remain untested.
+- `omalogi info` no longer stops when one firmware entity's version is not packed
+  BCD. A G502 Lightspeed Softdevice reports build `0x00a9`. openlogi-hidpp 0.8.13
+  rejects that entity, which hid the DPI and report rate. The entity is reported
+  as unreadable and the rest of the info is read. OpenLogi 0.8.15+ decodes it
+  (AprilNEA/OpenLogi#1790).
 - The overlay keeps its theme colors under Qt 6.12, which adds a `Color` type to
   `QtQuick` that hides the shell's palette singleton of the same name. Every palette
   reference now goes through `Commons.Color`, as Omarchy asks of shell plugins.

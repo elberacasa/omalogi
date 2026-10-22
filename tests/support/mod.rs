@@ -69,6 +69,9 @@ pub struct State {
     pub committed: Vec<u16>,
     /// Every report the host wrote, in order.
     pub requests: Vec<Vec<u8>>,
+    /// Live HID++ 0x2121 mode byte. Bit 1 is high resolution, as the feature defines it.
+    /// Starts high, which is what the kernel enables on connect.
+    pub wheel_mode: u8,
 }
 
 struct Feature {
@@ -159,6 +162,7 @@ impl FakeG502x {
             current_after_directory_write: None,
             committed: Vec::new(),
             requests: Vec::new(),
+            wheel_mode: 0x02,
         };
         let (responses, reports) = mpsc::unbounded_channel();
         Self {
@@ -174,6 +178,25 @@ impl FakeG502x {
     #[allow(dead_code)]
     pub fn with_product_id(mut self, product_id: u16) -> Self {
         self.product_id = product_id;
+        self
+    }
+
+    /// Appends a Softdevice entity whose build is binary `0x00a9`, as a G502 Lightspeed
+    /// reports. openlogi-hidpp 0.8.13 cannot decode that field.
+    #[allow(dead_code)]
+    pub fn with_non_bcd_firmware_entity(mut self) -> Self {
+        self.fixture.device_info[0] = self.fixture.device_info[0].saturating_add(1);
+        self.fixture.fw_entities.push(vec![
+            0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ]);
+        self
+    }
+
+    /// Drops one feature id, so a caller can see the "feature absent" path.
+    #[allow(dead_code)]
+    pub fn without_feature(mut self, id: u16) -> Self {
+        self.fixture.features.retain(|feature| feature.id != id);
         self
     }
 
@@ -303,6 +326,12 @@ impl FakeG502x {
                 .get(usize::from(params[0]))
                 .cloned()
                 .ok_or(ERR_INVALID_ARGUMENT),
+            // getWheelMode / setWheelMode. The fixture lists 0x2121; these bytes are state.
+            (0x2121, 1) => Ok(vec![state.wheel_mode]),
+            (0x2121, 2) => {
+                state.wheel_mode = params.first().copied().unwrap_or(0);
+                Ok(vec![state.wheel_mode])
+            }
             (0x2201, 0) => Ok(vec![1]),
             (0x2201, 1) => Ok(fx.dpi_list.clone()),
             (0x2201, 2) => Ok(fx.dpi_current.clone()),

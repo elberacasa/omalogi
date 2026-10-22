@@ -11,6 +11,7 @@ use omalogi::{
         Mode,
         format::{Binding, SpecialAction},
     },
+    scroll::ScrollResolution,
 };
 use support::{FakeG502x, State};
 
@@ -57,6 +58,76 @@ async fn reads_device_info() {
     assert_eq!(info.report_rate_hz, Some(1000));
     assert_eq!(info.report_rates_hz, [125, 250, 500, 1000]);
     assert_eq!(info.onboard_mode, Mode::Onboard);
+}
+
+#[tokio::test]
+async fn info_keeps_going_when_a_firmware_entity_is_not_bcd() {
+    let device = FakeG502x::new().with_non_bcd_firmware_entity();
+    let mut session = Session::connect(
+        device,
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        CLI_SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+    let info = session.info().await.expect("info");
+
+    let firmware: Vec<_> = info.firmware.iter().map(|f| f.version.as_str()).collect();
+    assert_eq!(
+        firmware,
+        [
+            "BL1 59.00.B0002",
+            "U1 60.00.B0009",
+            "unreadable (firmware version is not packed BCD)",
+        ]
+    );
+    assert!(!info.firmware[2].active);
+    assert_eq!(info.dpi, 1600);
+    assert_eq!(info.report_rate_hz, Some(1000));
+}
+
+#[tokio::test]
+async fn low_resolution_scroll_keeps_invert_and_is_echoed() {
+    let device = FakeG502x::new();
+    let state = device.state();
+    state.lock().expect("state").wheel_mode = 0x06; // high, inverted, native target
+    let mut session = Session::connect(
+        device,
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        CLI_SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+
+    assert_eq!(
+        session.wheel_resolution().await.expect("read"),
+        Some(ScrollResolution::High)
+    );
+    session
+        .set_wheel_resolution(ScrollResolution::Low)
+        .await
+        .expect("set low");
+    assert_eq!(state.lock().expect("state").wheel_mode, 0x04);
+    assert_eq!(
+        session.wheel_resolution().await.expect("read back"),
+        Some(ScrollResolution::Low)
+    );
+}
+
+#[tokio::test]
+async fn a_mouse_without_a_hires_wheel_reports_none() {
+    let device = FakeG502x::new().without_feature(0x2121);
+    let mut session = Session::connect(
+        device,
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        CLI_SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+    assert_eq!(session.wheel_resolution().await.expect("read"), None);
 }
 
 #[tokio::test]

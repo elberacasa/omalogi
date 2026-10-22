@@ -33,7 +33,7 @@ the 15-minute self-test that makes it verified for everyone.
 
 G102/G203 (c084, c092, c09d), G302 (c07f), G303 (c080), G303 Shroud Edition (c097),
 G402 (c07e), G403 (c083), G403 Hero (c08f), G403 Wireless (c082),
-G502 Hero Wireless (c08d), G502 Proteus Core (c07d), G502 Proteus Spectrum (c332),
+G502 Lightspeed (c08d), G502 Proteus Core (c07d), G502 Proteus Spectrum (c332),
 G502 X Lightspeed (c098), G502 X Plus (c095), G703 (c087), G703 Hero (c090), G705 (c096),
 G900 (c081), G903 (c086), G903 Hero (c091), G Pro (c085, c08c), G Pro Wireless (c088),
 G Pro X Superlight (c094), MX518 (c08e). Wireless models are listed here with their USB id
@@ -44,7 +44,7 @@ for a cable connection.
 <details>
 <summary>Untested wireless models, through a LIGHTSPEED, Bolt or Unifying receiver</summary>
 
-G305, G403 Wireless, G502 Hero Wireless, G502 X Plus, G602, G603, G604, G703,
+G305, G403 Wireless, G502 Lightspeed, G502 X Plus, G602, G603, G604, G703,
 G703 Hero, G705, G900, G903, G903 Hero, G Pro Wireless, G Pro X Superlight.
 Omalogi finds them with [OpenLogi](https://github.com/AprilNEA/OpenLogi)'s device layer,
 which handles the receivers, and edits them the same way as a wired mouse. A mouse
@@ -301,6 +301,21 @@ profile = 1
 Find window classes with `hyprctl activewindow` and monitor names with `hyprctl monitors`.
 The daemon picks up saved changes within a few seconds; a profile you choose on the mouse
 stays active until focus changes. Its log: `journalctl --user -u omalogi`.
+
+Some games, including native Linux Dota 2, ignore the high-resolution wheel events a
+Logitech mouse sends and the scroll wheel then does nothing. List those window classes
+and the daemon turns high-resolution scroll off (HID++ feature 0x2121) while one is
+focused, then puts the previous resolution back:
+
+```toml
+discrete_scroll = ["dota2"]
+```
+
+That is the mouse's live wheel mode, not an onboard profile, so it is not part of a
+profile backup. The kernel turns high resolution back on whenever the mouse reconnects,
+including after it sleeps, so the daemon applies the override again while the app stays
+focused. The daemon has to be running for this. A class can be listed here without a
+profile rule.
 
 ## Troubleshooting
 

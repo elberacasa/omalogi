@@ -10,6 +10,7 @@ pub mod hyprland;
 pub mod lock;
 pub mod onboard;
 pub mod rules;
+pub mod scroll;
 pub mod serve;
 pub mod setup;
 pub mod wireless;

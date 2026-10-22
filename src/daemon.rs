@@ -1,8 +1,11 @@
-//! `omalogi daemon`: switches onboard profiles as Hyprland focus changes, and publishes
-//! what it did to `$XDG_RUNTIME_DIR/omalogi/state.json` for the shell plugin.
+//! `omalogi daemon`: switches onboard profiles as Hyprland focus changes, forces
+//! low-resolution scroll for apps named in `discrete_scroll`, and publishes what it
+//! did to `$XDG_RUNTIME_DIR/omalogi/state.json` for the shell plugin.
 //!
 //! Profiles only change when focus changes, so a profile picked on the mouse stays
-//! active until the next focus change.
+//! active until the next focus change. Scroll resolution is re-read on each poll while
+//! a listed app is focused, because the kernel turns high resolution back on when the
+//! mouse reconnects.
 
 use std::{
     io,
@@ -24,6 +27,7 @@ use crate::{
     hyprland::{self, Event, HyprlandError},
     lock::DeviceLock,
     rules::{Config, Focus, Reason},
+    scroll::{self, ScrollResolution},
 };
 
 /// How often the active profile is read back, to notice changes made on the mouse.
@@ -131,6 +135,11 @@ struct Daemon {
     rules_pending: bool,
     /// Consecutive requests that stalled; the session is dropped on the second.
     transient_failures: u8,
+    /// Resolution to put back when the matched app loses focus.
+    /// Set only after this daemon itself switched the wheel to low.
+    scroll_restore: Option<ScrollResolution>,
+    /// The open mouse has no HID++ 0x2121 feature, so the poll stops asking.
+    scroll_unsupported: bool,
 }
 
 /// Whether the daemon may use the device now.
@@ -213,6 +222,8 @@ impl Daemon {
             lock_warned: false,
             rules_pending: false,
             transient_failures: 0,
+            scroll_restore: None,
+            scroll_unsupported: false,
         }
     }
 
@@ -225,6 +236,11 @@ impl Daemon {
         self.refresh_device().await;
         if std::mem::take(&mut self.rules_pending) {
             self.apply_rules().await;
+        } else if self.scroll_restore.is_some()
+            || self.config.config.wants_discrete_scroll(&self.focus)
+        {
+            // Reconnect can turn high resolution back on without a focus event.
+            self.apply_scroll().await;
         }
     }
 
@@ -270,6 +286,8 @@ impl Daemon {
     async fn apply_rules(&mut self) {
         self.config.reload_if_changed();
         self.rule_error = None;
+        // Scroll is independent of profile rules: a config may list an app here only.
+        self.apply_scroll().await;
         let Some((profile, reason)) = self.config.config.profile_for(&self.focus) else {
             return;
         };
@@ -296,6 +314,61 @@ impl Daemon {
                 self.transient_failures = 0;
             }
             Err(error) => self.handle_error(error, Some(&source)),
+        }
+    }
+
+    /// Forces low-resolution scroll while the focused app is listed, and puts back
+    /// the resolution this daemon replaced once that app loses focus.
+    ///
+    /// A failed write keeps `scroll_restore` as it was, so the next poll tries again.
+    /// The saved resolution is updated only after the mouse echoes the new mode.
+    async fn apply_scroll(&mut self) {
+        let matched = self.config.config.wants_discrete_scroll(&self.focus);
+        if self.scroll_unsupported || (!matched && self.scroll_restore.is_none()) {
+            return;
+        }
+        let read = {
+            let Some(session) = self.session.as_mut() else {
+                return;
+            };
+            session.wheel_resolution().await
+        };
+        let current = match read {
+            Ok(Some(resolution)) => resolution,
+            Ok(None) => {
+                self.scroll_unsupported = true;
+                return;
+            }
+            Err(error) => {
+                self.handle_error(error, Some("discrete scroll"));
+                return;
+            }
+        };
+        let plan = scroll::plan_scroll(matched, current, self.scroll_restore);
+        let Some(resolution) = plan.write else {
+            self.scroll_restore = plan.restore;
+            return;
+        };
+        let written = {
+            let Some(session) = self.session.as_mut() else {
+                return;
+            };
+            session.set_wheel_resolution(resolution).await
+        };
+        match written {
+            Ok(()) => {
+                self.scroll_restore = plan.restore;
+                self.transient_failures = 0;
+                let action = match resolution {
+                    ScrollResolution::Low => "low-resolution scroll",
+                    ScrollResolution::High => "restored scroll resolution",
+                };
+                eprintln!(
+                    "omalogi daemon: {action} for {}",
+                    self.focus.app.as_deref().unwrap_or("desktop"),
+                );
+            }
+            Err(error) => self.handle_error(error, Some("discrete scroll")),
         }
     }
 
@@ -376,6 +449,9 @@ impl Daemon {
         self.state.connected = false;
         self.state.active_profile = None;
         self.state.source = None;
+        // The next mouse may have a wheel feature. Keep scroll_restore: the override
+        // still has to be put back, or re-applied, after the reconnect.
+        self.scroll_unsupported = false;
     }
 
     fn current_state(&self) -> State {

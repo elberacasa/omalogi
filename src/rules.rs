@@ -4,6 +4,10 @@
 //! # Profile to use when no rule matches. Leave it out to keep the current profile.
 //! default_profile = 1
 //!
+//! # Hyprland window classes that get low-resolution scroll while focused.
+//! # Live HID++ 0x2121 mode, not an onboard profile. See `scroll`.
+//! discrete_scroll = ["dota2"]
+//!
 //! # Rules are checked in order; the first match wins.
 //! [[rule]]
 //! app = "cs2"        # Hyprland window class
@@ -39,6 +43,12 @@ pub enum ConfigError {
 pub struct Config {
     /// Profile number (1-based) used when no rule matches.
     pub default_profile: Option<usize>,
+    /// Hyprland window classes that get low-resolution scroll while focused.
+    ///
+    /// Compared without regard to case. Independent of [`Self::rules`]: a class can
+    /// be listed here without switching profiles. Empty by default.
+    #[serde(default)]
+    pub discrete_scroll: Vec<String>,
     #[serde(default, rename = "rule")]
     pub rules: Vec<Rule>,
 }
@@ -116,7 +126,23 @@ impl Config {
                 return Err(format!("rule {number} needs an app, a monitor, or both"));
             }
         }
+        for (index, app) in config.discrete_scroll.iter().enumerate() {
+            if app.trim().is_empty() {
+                return Err(format!("discrete_scroll entry {} is empty", index + 1));
+            }
+        }
         Ok(config)
+    }
+
+    /// Whether `focus` is an app that should get low-resolution scroll.
+    #[must_use]
+    pub fn wants_discrete_scroll(&self, focus: &Focus) -> bool {
+        let Some(app) = focus.app.as_deref() else {
+            return false;
+        };
+        self.discrete_scroll
+            .iter()
+            .any(|want| want.eq_ignore_ascii_case(app))
     }
 
     /// The profile for `focus`: the first rule whose given fields all match, else the default.
@@ -253,5 +279,29 @@ mod tests {
     fn missing_file_is_an_empty_config() {
         let path = std::env::temp_dir().join("omalogi-no-such-config.toml");
         assert_eq!(Config::load(&path).expect("loads"), Config::default());
+    }
+
+    #[test]
+    fn discrete_scroll_matches_the_window_class_without_case() {
+        let config = Config::parse("discrete_scroll = [\"dota2\", \"cs2\"]\n").expect("parses");
+        assert!(config.wants_discrete_scroll(&focus(Some("Dota2"), None)));
+        assert!(config.wants_discrete_scroll(&focus(Some("cs2"), Some("DP-2"))));
+        assert!(!config.wants_discrete_scroll(&focus(Some("firefox"), None)));
+        assert!(!config.wants_discrete_scroll(&focus(None, Some("DP-2"))));
+        assert!(!Config::default().wants_discrete_scroll(&focus(Some("dota2"), None)));
+    }
+
+    #[test]
+    fn a_config_without_discrete_scroll_still_parses() {
+        let config = Config::parse(EXAMPLE).expect("example parses");
+        assert!(config.discrete_scroll.is_empty());
+    }
+
+    #[test]
+    fn empty_discrete_scroll_entries_are_refused() {
+        assert_eq!(
+            Config::parse("discrete_scroll = [\"\"]\n"),
+            Err("discrete_scroll entry 1 is empty".to_owned())
+        );
     }
 }
