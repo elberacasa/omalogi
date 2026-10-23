@@ -71,6 +71,11 @@ pub enum SessionError {
          `omalogi profiles repair` to check and fix the directory"
     )]
     InvalidDirectoryChecksum,
+    #[error(
+        "the mouse has no profile directory yet, so it runs its factory profiles: run \
+         `omalogi profiles repair` to set one up from them"
+    )]
+    DirectoryNeverWritten,
     #[error("profile {number} does not exist; the device has {count} profile slots")]
     NoSuchProfile { number: usize, count: usize },
     #[error("profile {0} is disabled")]
@@ -497,7 +502,20 @@ impl Session {
             if !valid {
                 invalid.push(directory);
             }
-            let entries = format::parse_directory(&data, max_entries.into());
+            // A user directory that was never written lists nothing, but repairing it writes
+            // every user profile sector, so those are saved too.
+            let entries = if directory == format::USER_DIRECTORY_SECTOR
+                && format::directory_never_written(&data)
+            {
+                (1..=u16::from(max_entries))
+                    .map(|sector| DirectoryEntry {
+                        sector,
+                        enabled: false,
+                    })
+                    .collect()
+            } else {
+                format::parse_directory(&data, max_entries.into())
+            };
             sectors.insert(directory, data);
             for entry in entries {
                 if sectors.len() >= usize::from(description.sector_count) {
@@ -641,6 +659,7 @@ pub(crate) async fn read_directory(
 ) -> Result<Vec<DirectoryEntry>, SessionError> {
     // A read that overlaps other traffic can come back wrong, so read once more before
     // calling the directory invalid.
+    let mut never_written = false;
     for _ in 0..2 {
         let directory = feature
             .read_sector(format::USER_DIRECTORY_SECTOR, description.sector_size)
@@ -651,8 +670,13 @@ pub(crate) async fn read_directory(
                 description.profile_count.into(),
             ));
         }
+        never_written = format::directory_never_written(&directory);
     }
-    Err(SessionError::InvalidDirectoryChecksum)
+    Err(if never_written {
+        SessionError::DirectoryNeverWritten
+    } else {
+        SessionError::InvalidDirectoryChecksum
+    })
 }
 
 /// Expands an AdjustableDPI sensor list: plain values, and `min, 0xE000 | step, max`

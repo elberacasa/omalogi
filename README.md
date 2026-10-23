@@ -309,6 +309,7 @@ stays active until focus changes. Its log: `journalctl --user -u omalogi`.
 | `permission denied opening /dev/hidrawN` | Install the udev rule above and replug the mouse. For one session: `sudo setfacl -m u:$USER:rw /dev/hidrawN`. |
 | `no supported Logitech mouse found` | Plug a G-series mouse in over USB, or turn on a wireless one paired to its receiver. |
 | `the onboard profile directory's checksum does not match` | `omalogi profiles repair --dry-run` checks that the directory's entries and every profile they list are intact; without `--dry-run` it backs up, rewrites only the directory and verifies it. The overlay offers the same repair. If it refuses, restore a backup made before the damage. |
+| `the mouse has no profile directory yet` | The mouse was never set up by G HUB and runs its factory profiles. `omalogi profiles repair --dry-run` shows the directory it would set up from them; without `--dry-run` it backs up, writes each user profile as a copy of a factory profile, then the directory, verifying every write. The overlay offers the same repair. |
 | Overlay or indicator missing after an update | `omarchy-shell shell rescanPlugins`; if a new plugin file was added, restart the shell. |
 | Indicator shows only the mouse icon | The daemon is not running: `systemctl --user status omalogi`. |
 | An edit went wrong | `omalogi restore ~/.local/state/omalogi/backups/<file>` with the backup saved before it. |

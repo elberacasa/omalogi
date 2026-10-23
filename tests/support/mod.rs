@@ -215,6 +215,32 @@ impl FakeG502x {
         self
     }
 
+    /// The same mouse before anything was written to its user memory: the directory and
+    /// every user profile sector erased to `0xFF`, as a G502 X Lightspeed that G HUB never
+    /// set up reads its directory. Only the factory profiles hold data.
+    #[allow(dead_code)]
+    pub fn with_blank_user_memory(self) -> Self {
+        {
+            let mut state = self.state.lock().expect("fake device state");
+            for (_, data) in state
+                .sectors
+                .iter_mut()
+                .filter(|(sector, _)| **sector < FIRST_FACTORY_SECTOR)
+            {
+                data.fill(0xFF);
+            }
+            state.loaded_sector = None;
+        }
+        self
+    }
+
+    /// The same mouse reporting no factory profiles.
+    #[allow(dead_code)]
+    pub fn without_factory_profiles(mut self) -> Self {
+        self.fixture.description[4] = 0;
+        self
+    }
+
     pub fn state(&self) -> Arc<Mutex<State>> {
         Arc::clone(&self.state)
     }

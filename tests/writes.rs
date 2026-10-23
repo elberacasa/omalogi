@@ -781,6 +781,122 @@ async fn a_directory_that_cannot_be_rebuilt_is_left_alone() {
 }
 
 #[tokio::test]
+async fn a_directory_that_was_never_written_is_set_up_from_the_factory_profiles() {
+    let mut h = Harness::new_with("first", FakeG502x::new().with_blank_user_memory()).await;
+    let original = fixture_sectors();
+
+    let refused = h.session.onboard().await.expect_err("profiles are refused");
+    assert!(
+        refused.to_string().contains("no profile directory yet"),
+        "{refused}"
+    );
+
+    // The backup saves every user sector the setup writes, flagged, since none of them
+    // carries a checksum yet.
+    let backup = h.session.backup().await.expect("backup of blank memory");
+    let user = ["0000", "0001", "0002", "0003", "0004", "0005"];
+    assert_eq!(backup.invalid_checksums, user);
+    for sector in user.iter().chain(&["0100", "0101", "0102"]) {
+        assert!(backup.sectors.contains_key(*sector), "sector {sector}");
+    }
+
+    let plan = h.session.plan_directory_repair().await.expect("set up");
+    assert!(plan.never_written);
+    let listed: Vec<_> = plan
+        .profiles
+        .iter()
+        .map(|entry| {
+            (
+                entry.profile,
+                entry.sector,
+                entry.enabled,
+                entry.factory_sector,
+            )
+        })
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            (1, 1, true, Some(0x0101)),
+            (2, 2, true, Some(0x0102)),
+            (3, 3, false, Some(0x0101)),
+            (4, 4, false, Some(0x0101)),
+            (5, 5, false, Some(0x0101))
+        ]
+    );
+    assert_eq!(plan.sectors, [1, 2, 3, 4, 5, 0], "the directory last");
+    assert_eq!(h.write_requests(), 0, "planning writes nothing");
+
+    h.session.repair_directory().await.expect("set up");
+    assert_eq!(h.committed(), [1, 2, 3, 4, 5, 0]);
+    for sector in [0, 1, 2, 3, 4, 5] {
+        assert_eq!(
+            h.sector(sector),
+            original[&sector],
+            "sector {sector} as the wired G502 X stores it"
+        );
+    }
+    assert_eq!(
+        h.session
+            .onboard()
+            .await
+            .expect("profiles read")
+            .profiles
+            .len(),
+        5
+    );
+    assert!(matches!(
+        h.session.plan_directory_repair().await,
+        Err(EditError::DirectoryIntact)
+    ));
+}
+
+#[tokio::test]
+async fn a_setup_that_fails_part_way_leaves_the_directory_unwritten() {
+    let mut h = Harness::new_with("first-fails", FakeG502x::new().with_blank_user_memory()).await;
+    {
+        let mut state = h.state.lock().expect("state");
+        state.corrupt_next_write = true;
+    }
+
+    let result = h.session.repair_directory().await;
+    assert!(
+        matches!(
+            result,
+            Err(EditError::VerifyFailed {
+                sector: 1,
+                restored: true
+            })
+        ),
+        "{result:?}"
+    );
+    assert_eq!(h.committed(), [1, 1], "nothing after the failed profile");
+    assert_eq!(
+        h.sector(0),
+        [0xFF; 255],
+        "the mouse still runs its factory profiles"
+    );
+    assert_eq!(h.sector(1), [0xFF; 255], "and the profile is put back");
+}
+
+#[tokio::test]
+async fn a_directory_that_was_never_written_needs_factory_profiles() {
+    let mut h = Harness::new_with(
+        "first-no-factory",
+        FakeG502x::new()
+            .with_blank_user_memory()
+            .without_factory_profiles(),
+    )
+    .await;
+    let result = h.session.repair_directory().await;
+    assert!(
+        matches!(result, Err(EditError::NoFactoryProfiles)),
+        "{result:?}"
+    );
+    assert_eq!(h.write_requests(), 0);
+}
+
+#[tokio::test]
 async fn restore_works_past_a_damaged_directory() {
     let mut h = Harness::new("restore-damaged").await;
     let original = fixture_sectors();
