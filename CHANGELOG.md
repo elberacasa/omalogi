@@ -7,11 +7,14 @@ All notable changes are listed here. The project follows
 
 ### Changed
 
-- OpenLogi 0.8.13 (from 0.8.9), with `openlogi-core`, `openlogi-hid` and
+- OpenLogi 0.8.17 (from 0.8.9), with `openlogi-core`, `openlogi-hid` and
   `openlogi-hidpp` moved together. The HID++ channel now drops the Logitech DJ reports a
   Unifying receiver sends on the same node instead of counting them as broken HID++
-  replies. Nothing else in the path to the mouse changed for Omalogi, and reads on a
-  G502 X are identical to 0.8.9.
+  replies, decodes a firmware version sent in binary instead of packed BCD, and checks
+  that a DPI reply names the sensor that was asked. `omalogi info`, `dpi` and `profiles`
+  read a wired G502 X exactly as 0.3.6 does.
+- Building from source needs Rust 1.99 or newer (from 1.98), which OpenLogi 0.8.16
+  requires. Arch ships 1.99, so the AUR package is unaffected.
 
 ### Fixed
 
@@ -31,10 +34,11 @@ All notable changes are listed here. The project follows
   Hero stays 046d:c08b. Both Lightspeed ids remain untested. The udev rule
   already matches c08d and the LIGHTSPEED receiver c539, so it is unchanged.
 - `omalogi info` no longer stops when one firmware entity's version is not packed
-  BCD. A G502 Lightspeed Softdevice reports build `0x00a9`. openlogi-hidpp 0.8.13
-  rejects that entity, which hid the DPI and report rate and kept the overlay
-  from opening the mouse. The entity is reported as unreadable and the rest of
-  the info is read. OpenLogi 0.8.15+ decodes it (AprilNEA/OpenLogi#1790).
+  BCD. A G502 Lightspeed Softdevice reports build `0x00a9`, which openlogi-hidpp
+  0.8.13 rejected, hiding the DPI and report rate and keeping the overlay from
+  opening the mouse. The entity now reads as `00.00.B0169` (AprilNEA/OpenLogi#1790).
+  An entity OpenLogi still cannot decode is reported as unreadable, and the rest of
+  the info is read.
 - The overlay keeps its theme colors under Qt 6.12, which adds a `Color` type to
   `QtQuick` that hides the shell's palette singleton of the same name. Every palette
   reference now goes through `Commons.Color`, as Omarchy asks of shell plugins.

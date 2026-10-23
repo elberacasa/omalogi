@@ -128,7 +128,7 @@ the udev rule below, and runs `omalogi setup`; run it again after updating the p
 - **Omarchy 4** (omarchy-shell, Hyprland): the plugin, bar indicator and automatic
   switching run inside it.
 - **The `omalogi` helper**: the release binary from this repository (installed by
-  `install.sh` or the AUR package), or built from source with Rust 1.98 or newer. The
+  `install.sh` or the AUR package), or built from source with Rust 1.99 or newer. The
   plugin cannot open USB devices itself.
 - **A udev rule** (`packaging/udev/70-omalogi.rules`) that gives your login session access
   to supported Logitech mice and receivers; installing it asks for `sudo` once.
@@ -140,7 +140,7 @@ the udev rule below, and runs `omalogi setup`; run it again after updating the p
 
 ## Install from source
 
-Requirements: Omarchy 4 (Hyprland, omarchy-shell), a Rust toolchain (1.98 or newer).
+Requirements: Omarchy 4 (Hyprland, omarchy-shell), a Rust toolchain (1.99 or newer).
 
 ```sh
 git clone https://github.com/elberacasa/omalogi

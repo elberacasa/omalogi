@@ -60,10 +60,33 @@ async fn reads_device_info() {
 }
 
 #[tokio::test]
-async fn info_keeps_going_when_a_firmware_entity_is_not_bcd() {
-    let device = FakeG502x::new().with_non_bcd_firmware_entity();
+async fn info_reads_a_firmware_entity_that_is_not_bcd() {
     let mut session = Session::connect(
-        device,
+        FakeG502x::new().with_non_bcd_firmware_entity(),
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        CLI_SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+    let info = session.info().await.expect("info");
+
+    let firmware: Vec<_> = info
+        .firmware
+        .iter()
+        .map(|f| (f.kind.as_str(), f.version.as_str()))
+        .collect();
+    assert_eq!(
+        firmware[2],
+        ("Softdevice", "00.00.B0169"),
+        "a binary build, with no NUL prefix"
+    );
+}
+
+#[tokio::test]
+async fn info_keeps_going_when_a_firmware_entity_is_unreadable() {
+    let mut session = Session::connect(
+        FakeG502x::new().with_unreadable_firmware_entity(),
         SUPPORTED_DEVICES[0],
         "emulated".to_owned(),
         CLI_SOFTWARE_ID,

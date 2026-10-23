@@ -177,15 +177,28 @@ impl FakeG502x {
         self
     }
 
-    /// Appends a Softdevice entity whose build is binary `0x00a9`, as a G502 Lightspeed
-    /// reports. openlogi-hidpp 0.8.13 cannot decode that field.
+    /// Appends a Softdevice entity whose build is binary `0x00a9` and whose prefix is NUL
+    /// bytes, as a G502 Lightspeed reports.
     #[allow(dead_code)]
-    pub fn with_non_bcd_firmware_entity(mut self) -> Self {
-        self.fixture.device_info[0] = self.fixture.device_info[0].saturating_add(1);
-        self.fixture.fw_entities.push(vec![
+    pub fn with_non_bcd_firmware_entity(self) -> Self {
+        self.with_firmware_entity(vec![
             0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00,
-        ]);
+        ])
+    }
+
+    /// Appends an entity whose prefix is not text, which openlogi-hidpp cannot decode.
+    #[allow(dead_code)]
+    pub fn with_unreadable_firmware_entity(self) -> Self {
+        self.with_firmware_entity(vec![
+            0x05, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+        ])
+    }
+
+    fn with_firmware_entity(mut self, entity: Vec<u8>) -> Self {
+        self.fixture.device_info[0] = self.fixture.device_info[0].saturating_add(1);
+        self.fixture.fw_entities.push(entity);
         self
     }
 
