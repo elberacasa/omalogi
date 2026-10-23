@@ -266,6 +266,13 @@ impl FakeG502x {
         self
     }
 
+    /// The same mouse reporting `count` user sectors.
+    #[allow(dead_code)]
+    pub fn with_sector_count(mut self, count: u8) -> Self {
+        self.fixture.description[6] = count;
+        self
+    }
+
     pub fn state(&self) -> Arc<Mutex<State>> {
         Arc::clone(&self.state)
     }
@@ -357,6 +364,8 @@ impl FakeG502x {
             (0x2201, 0) => Ok(vec![1]),
             (0x2201, 1) => Ok(fx.dpi_list.clone()),
             (0x2201, 2) => Ok(fx.dpi_current.clone()),
+            // setSensorDpi: a G502 X running its onboard profiles refuses it.
+            (0x2201, 3) if state.mode == 1 => Err(ERR_INVALID_ARGUMENT),
             (0x8060, 0) => Ok(fx.rate_list.clone()),
             (0x8060, 1) => Ok(fx.rate_current.clone()),
             (0x8100, 0) => Ok(fx.description.clone()),

@@ -897,6 +897,30 @@ async fn a_directory_that_was_never_written_needs_factory_profiles() {
 }
 
 #[tokio::test]
+async fn a_directory_that_was_never_written_needs_a_sector_per_profile() {
+    let mut h = Harness::new_with(
+        "first-no-room",
+        FakeG502x::new()
+            .with_blank_user_memory()
+            .with_sector_count(5),
+    )
+    .await;
+    let result = h.session.repair_directory().await;
+    assert!(
+        matches!(
+            result,
+            Err(EditError::NoRoomForProfiles {
+                profiles: 5,
+                sectors: 5,
+                size: 255
+            })
+        ),
+        "{result:?}"
+    );
+    assert_eq!(h.write_requests(), 0);
+}
+
+#[tokio::test]
 async fn restore_works_past_a_damaged_directory() {
     let mut h = Harness::new("restore-damaged").await;
     let original = fixture_sectors();
