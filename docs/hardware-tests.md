@@ -433,6 +433,36 @@ fresh backup; the daemon was restarted afterwards and the mouse was on profile 1
 
 Result: **pass**.
 
+## 2026-10-19: setting up a profile directory that was never written
+
+Device: Logitech G502 X Lightspeed, through its LIGHTSPEED receiver (046d:c547), WPID
+409f, firmware MPM 30.00.B0014, bootloader BL1 48.00.B0014. Host: Arch Linux (Omarchy
+4.0.5, Hyprland 0.56.2). The mouse had never been set up by G HUB, and the 0.3.6
+helper refused it: `omalogi profiles` reported a directory checksum mismatch, and
+`omalogi profiles repair` answered "it lists no profiles".
+
+Its user memory was erased flash: sectors `0000` to `0005` every byte `0xff`. The
+factory directory `0100` lists factory profiles `0101` and `0102`, both on, and the
+mouse ran them. Read with the release build of this change; nothing else used the
+mouse (no daemon, no ratbagd).
+
+| Step | Result |
+|---|---|
+| `omalogi profiles` | refused: "the mouse has no profile directory yet, so it runs its factory profiles" |
+| `omalogi backup` | 9 sectors saved; `0000` to `0005` flagged in `invalid_checksums`, all `0xff`. Unwritten user sectors read without a HID++ error |
+| `omalogi profiles repair --dry-run` | profiles 1 and 2 on as copies of `0101` and `0102`, 3 to 5 off as copies of `0101`; would write `0001`–`0005`, then `0000`; nothing written |
+| `omalogi profiles repair` | backup saved first; six sectors written and each verified |
+| Fresh backup | no sector flagged. `0001`–`0005` equal their factory profile but for the checksum, `0000` lists sectors 1–5 with flags `1 1 0 0 0` and reserved byte `0xff`, all byte-identical to the plan. `0100`–`0102` unchanged |
+| `omalogi profiles` | five profiles; profile 1 active: 1000 Hz, DPI 800/1200/1600/2400/3200, default 1600. Profile 2 the same at 500 Hz, as libratbag decodes the factory profiles |
+| `omalogi profiles repair --dry-run` | refused: the directory's checksum matches, nothing to repair |
+| `profiles edit 1 --rate` 500, 125, 1000 | each backed up, written, verified and in use at once (`omalogi info`) |
+| `profiles edit 1 --default-dpi`, overlay | the DPI change in use at once; the overlay lists and edits the profiles |
+
+Result: **pass**. The memory written is what the wired G502 X stores for its own factory
+profiles (`tests/fixtures/g502x-c099.json`), and the mouse behaved as before until edited.
+The erased state cannot be written back (a restore never writes a sector saved with an
+invalid checksum), so this run cannot be repeated on the same mouse.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after

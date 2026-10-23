@@ -239,3 +239,69 @@ async fn a_damaged_directory_is_reported_and_repaired() {
     served.expect("server ends cleanly");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn a_directory_that_was_never_written_is_set_up_through_the_overlay() {
+    let dir = test_dir("first");
+    let _ = std::fs::remove_dir_all(&dir);
+    let device = FakeG502x::new().with_blank_user_memory();
+    let state = device.state();
+    let session = Session::connect(
+        device,
+        SUPPORTED_DEVICES[0],
+        "emulated".to_owned(),
+        serve::SOFTWARE_ID,
+    )
+    .await
+    .expect("session starts");
+    let server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+        backup_in("first")
+    });
+
+    let (client, server_side) = tokio::io::duplex(1 << 20);
+    let (server_read, server_write) = tokio::io::split(server_side);
+    let (client_read, mut client_write) = tokio::io::split(client);
+
+    let script = async {
+        let mut responses = BufReader::new(client_read).lines();
+        let mut ask = async |request: Value| -> Value {
+            let line = format!("{request}\n");
+            client_write.write_all(line.as_bytes()).await.expect("send");
+            let reply = responses.next_line().await.expect("read").expect("a reply");
+            serde_json::from_str(&reply).expect("JSON reply")
+        };
+
+        // The overlay offers the same repair card as for a damaged directory.
+        let reply = ask(json!({ "id": 1, "cmd": "state" })).await;
+        assert_eq!(reply["ok"], false, "{reply}");
+        assert_eq!(reply["kind"], "directory_checksum");
+
+        let reply = ask(json!({ "id": 2, "cmd": "repair_directory" })).await;
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(reply["result"]["repair"]["never_written"], true);
+        assert_eq!(
+            reply["result"]["onboard"]["profiles"]
+                .as_array()
+                .map(Vec::len),
+            Some(5)
+        );
+        let backup = PathBuf::from(reply["result"]["backup"].as_str().expect("backup path"));
+        assert!(backup.exists(), "backed up before setting up");
+        let original = fixture_sectors();
+        for sector in [0, 1, 2, 3, 4, 5] {
+            assert_eq!(
+                state.lock().expect("state").sectors[&sector],
+                original[&sector]
+            );
+        }
+
+        drop(client_write);
+    };
+
+    let (served, ()) = tokio::join!(
+        server.run(BufReader::new(server_read), server_write),
+        script
+    );
+    served.expect("server ends cleanly");
+    let _ = std::fs::remove_dir_all(&dir);
+}

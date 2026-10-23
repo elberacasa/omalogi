@@ -130,27 +130,53 @@ pub fn restore_report(report: &RestoreReport) -> String {
 }
 
 pub fn directory_repair(repair: &DirectoryRepair, dry_run: bool) -> String {
-    let mut out = if dry_run {
-        "The profile directory's checksum does not match, but its entries check out:\n"
-    } else {
-        "Repaired and verified the profile directory. It lists:\n"
+    let mut out = match (repair.never_written, dry_run) {
+        (false, true) => {
+            "The profile directory's checksum does not match, but its entries check out:\n"
+        }
+        (false, false) => "Repaired and verified the profile directory. It lists:\n",
+        (true, true) => {
+            "The profile directory was never written, so the mouse runs its factory profiles. \
+             Setting one up from them lists:\n"
+        }
+        (true, false) => {
+            "Set up and verified the profile directory from the factory profiles. It lists:\n"
+        }
     }
     .to_owned();
     for entry in &repair.profiles {
-        let _ = writeln!(
+        let _ = write!(
             out,
             "  Profile {}  sector {:04x}  {}",
             entry.profile,
             entry.sector,
             if entry.enabled { "on" } else { "off" }
         );
+        if let Some(factory) = entry.factory_sector {
+            let _ = write!(out, "  copy of factory profile {factory:04x}");
+        }
+        out.push('\n');
     }
     if dry_run {
+        let sectors: Vec<_> = repair
+            .sectors
+            .iter()
+            .map(|sector| format!("{sector:04x}"))
+            .collect();
         let _ = writeln!(
             out,
-            "Repairing rewrites only sector {:04x}, with these entries and a new checksum \
-             (dry run, nothing written).",
-            repair.sector
+            "{} (dry run, nothing written).",
+            if repair.never_written {
+                format!(
+                    "Setting it up writes sectors {}, each with a checksum, the directory last",
+                    sectors.join(", ")
+                )
+            } else {
+                format!(
+                    "Repairing rewrites only sector {:04x}, with these entries and a new checksum",
+                    repair.sector
+                )
+            }
         );
     }
     out

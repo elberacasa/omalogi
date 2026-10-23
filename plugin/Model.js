@@ -175,7 +175,7 @@ function setupCopy(kind, message) {
   case "directory":
     return {
       title: "Repair the profile list on your mouse",
-      body: "The list of profiles stored on your mouse fails its checksum, so Omalogi is not changing anything. Repair first checks that every profile it lists is intact, backs up the mouse's memory, then rewrites only that list and verifies it.",
+      body: "The list of profiles stored on your mouse fails its checksum, so Omalogi is not changing anything. Repair first checks that every profile it lists is intact, backs up the mouse's memory, then rewrites only that list and verifies it. A mouse that has never had a list, and runs its factory profiles, gets one set up from those profiles instead.",
       action: "Repair",
       installer: false
     }

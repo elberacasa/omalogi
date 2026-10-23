@@ -17,7 +17,8 @@
 //! ```
 //!
 //! An error the overlay can act on also names its `kind`: `directory_checksum` when the
-//! profile directory fails its checksum, which `repair_directory` fixes.
+//! profile directory fails its checksum or was never written, which `repair_directory`
+//! fixes.
 //!
 //! The device lock is held for each request, never while idle, so the daemon and CLI
 //! commands take turns with the server. Writes keep the CLI's guarantees: all profile
@@ -117,7 +118,10 @@ impl Failure {
                     _ => None,
                 }
             });
-            if matches!(session, Some(SessionError::InvalidDirectoryChecksum)) {
+            if matches!(
+                session,
+                Some(SessionError::InvalidDirectoryChecksum | SessionError::DirectoryNeverWritten)
+            ) {
                 kind = Some("directory_checksum");
             }
             source = error.source();

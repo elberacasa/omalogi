@@ -105,6 +105,11 @@ pub enum EditError {
          fails its checksum; restore a backup made before it was damaged with `omalogi restore`"
     )]
     DamagedProfile { number: usize, sector: u16 },
+    #[error(
+        "the profile directory was never written, and the mouse lists no factory profiles \
+         to set it up from"
+    )]
+    NoFactoryProfiles,
     #[error("`{0}` is not a usable profile name: use up to 47 printable ASCII characters")]
     InvalidName(String),
     #[error("profile {0} is in use; activate another profile before turning it off")]
@@ -253,17 +258,24 @@ pub struct RepairedEntry {
     pub profile: usize,
     pub sector: u16,
     pub enabled: bool,
+    /// The factory profile this profile is written as a copy of, when the directory was
+    /// never written.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub factory_sector: Option<u16>,
 }
 
-/// A profile directory rebuilt from its own entries, not yet written.
+/// A profile directory rebuilt from its own entries, or set up from the factory profiles
+/// when it was never written, not yet written.
 #[derive(Debug, Clone, Serialize)]
 pub struct DirectoryRepair {
     pub sector: u16,
     pub profiles: Vec<RepairedEntry>,
+    /// Whether the directory was never written, so the profiles it lists are written too.
+    pub never_written: bool,
+    /// The sectors the repair writes, in write order: the directory last.
+    pub sectors: Vec<u16>,
     #[serde(skip)]
-    previous: Vec<u8>,
-    #[serde(skip)]
-    repaired: Vec<u8>,
+    writes: Vec<SectorWrite>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -824,6 +836,9 @@ impl Session {
         if first != second {
             return Err(EditError::DirectoryUnstable);
         }
+        if format::directory_never_written(&first) {
+            return plan_first_directory(&feature, &description, first).await;
+        }
 
         let entries =
             format::directory_entries_for_repair(&first, description.profile_count.into())
@@ -842,24 +857,34 @@ impl Session {
                 profile: number,
                 sector: entry.sector,
                 enabled: entry.enabled,
+                factory_sector: None,
             });
         }
         let repaired = format::rebuilt_directory(&first, entries.len());
         Ok(DirectoryRepair {
             sector: format::USER_DIRECTORY_SECTOR,
             profiles,
-            previous: first,
-            repaired,
+            never_written: false,
+            sectors: vec![format::USER_DIRECTORY_SECTOR],
+            writes: vec![SectorWrite {
+                sector: format::USER_DIRECTORY_SECTOR,
+                data: repaired,
+                previous: first,
+            }],
         })
     }
 
-    /// Writes the repaired directory, verified by reading it back. The caller makes sure a
-    /// backup exists first.
+    /// Writes the repaired directory, and the profiles it lists when it was never written,
+    /// each verified by reading it back. The directory goes last, so the mouse keeps
+    /// running its factory profiles until every profile it will list checks out. The
+    /// caller makes sure a backup exists first.
     pub async fn repair_directory(&mut self) -> Result<DirectoryRepair, EditError> {
         let repair = self.plan_directory_repair().await?;
         self.ensure_writes_accepted().await?;
         let feature = self.onboard_feature().await?;
-        write_verified(&feature, repair.sector, &repair.repaired, &repair.previous).await?;
+        for write in &repair.writes {
+            write_verified(&feature, write.sector, &write.data, &write.previous).await?;
+        }
         Ok(repair)
     }
 
@@ -904,6 +929,69 @@ fn stage_index(
         }
         .ok_or(EditError::StageNeeded { which }),
     }
+}
+
+/// Sets up a directory that was never written from the factory profiles
+/// ([`format::initial_entries`]), without writing: each user profile as a copy of its
+/// factory profile with a checksum, then the directory. Factory sectors carry no checksum,
+/// so each copy must decode as a profile instead.
+async fn plan_first_directory(
+    feature: &OnboardProfilesFeature,
+    description: &Description,
+    previous: Vec<u8>,
+) -> Result<DirectoryRepair, EditError> {
+    let size = description.sector_size;
+    let rom_directory = feature
+        .read_sector(format::ROM_DIRECTORY_SECTOR, size)
+        .await?;
+    let entries = format::initial_entries(
+        &rom_directory,
+        description.rom_profile_count.into(),
+        description.profile_count.into(),
+    )
+    .ok_or(EditError::NoFactoryProfiles)?;
+
+    let mut factory: BTreeMap<u16, Vec<u8>> = BTreeMap::new();
+    let mut profiles = Vec::with_capacity(entries.len());
+    let mut writes = Vec::with_capacity(entries.len() + 1);
+    for (position, entry) in entries.iter().enumerate() {
+        let number = position + 1;
+        let source = match factory.get(&entry.factory_sector) {
+            Some(data) => data.clone(),
+            None => {
+                let data = feature.read_sector(entry.factory_sector, size).await?;
+                factory.insert(entry.factory_sector, data.clone());
+                data
+            }
+        };
+        let data = format::with_crc(source);
+        if Profile::parse(&data, description).is_err() {
+            return Err(EditError::InvalidProfileSector { number });
+        }
+        writes.push(SectorWrite {
+            sector: entry.sector,
+            data,
+            previous: read_sector_as_is(feature, entry.sector, size).await?,
+        });
+        profiles.push(RepairedEntry {
+            profile: number,
+            sector: entry.sector,
+            enabled: entry.enabled,
+            factory_sector: Some(entry.factory_sector),
+        });
+    }
+    writes.push(SectorWrite {
+        sector: format::USER_DIRECTORY_SECTOR,
+        data: format::initial_directory(&rom_directory, &entries),
+        previous,
+    });
+    Ok(DirectoryRepair {
+        sector: format::USER_DIRECTORY_SECTOR,
+        profiles,
+        never_written: true,
+        sectors: writes.iter().map(|write| write.sector).collect(),
+        writes,
+    })
 }
 
 /// Reads a user sector, reading it once more if its checksum fails. Nothing is ever

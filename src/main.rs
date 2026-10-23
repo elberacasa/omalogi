@@ -137,7 +137,9 @@ enum ProfilesAction {
     /// Rebuild a profile directory whose checksum does not match from its own entries.
     ///
     /// Only the directory is written, and only when its entries are consistent and every
-    /// profile it lists passes its own checksum. Profile memory is backed up first.
+    /// profile it lists passes its own checksum. A directory that was never written is set
+    /// up from the factory profiles instead, writing each user profile as a copy of one.
+    /// Profile memory is backed up first.
     Repair {
         /// Check the directory and show the result, without writing.
         #[arg(long)]

@@ -445,10 +445,102 @@ pub fn rebuilt_directory(directory: &[u8], entry_count: usize) -> Vec<u8> {
     );
     let mut data = vec![0xFF; directory.len()];
     data[..kept].copy_from_slice(&directory[..kept]);
-    let crc_at = data.len() - 2;
-    let crc = crc_ccitt(&data[..crc_at]);
-    data[crc_at..].copy_from_slice(&crc.to_be_bytes());
-    data
+    with_crc(data)
+}
+
+/// Whether a user directory sector was never written: every byte `0xFF`, as erased flash
+/// reads. A G502 X Lightspeed that G HUB never set up answers like this and runs its
+/// factory profiles (read on hardware, firmware MPM 30.00.B0014).
+#[must_use]
+pub fn directory_never_written(sector: &[u8]) -> bool {
+    sector.iter().all(|&byte| byte == 0xFF)
+}
+
+/// A user profile of a first directory: the sector it is stored in, whether it is on, and
+/// the factory profile it starts as a copy of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct InitialEntry {
+    pub sector: u16,
+    pub enabled: bool,
+    pub factory_sector: u16,
+}
+
+/// The user profiles of a first directory, from the factory directory, or `None` when it
+/// lists no factory profile.
+///
+/// User profile N goes in sector N as a copy of factory profile N, or of the first factory
+/// profile when the mouse has fewer factory profiles than user slots, as libratbag
+/// initializes a directory that fails its checksum (`src/hidpp20.c`,
+/// `hidpp20_onboard_profiles_initialize`). Each profile is on when its factory profile is,
+/// so the mouse offers the same profiles as before, and at least the first is on
+/// (`hidpp20_onboard_profiles_commit`). The wired G502 X's own memory is laid out exactly
+/// so (`tests/fixtures/g502x-c099.json`).
+#[must_use]
+pub fn initial_entries(
+    rom_directory: &[u8],
+    rom_profile_count: usize,
+    profile_count: usize,
+) -> Option<Vec<InitialEntry>> {
+    let factory = parse_directory(rom_directory, rom_profile_count);
+    if factory.is_empty()
+        || factory
+            .iter()
+            .any(|entry| entry.sector <= ROM_DIRECTORY_SECTOR)
+    {
+        return None;
+    }
+    let mut entries: Vec<InitialEntry> = (0..profile_count)
+        .map(|index| {
+            let source = factory.get(index);
+            InitialEntry {
+                sector: u16::try_from(index + 1).expect("profile counts fit in u16"),
+                enabled: source.is_some_and(|entry| entry.enabled),
+                factory_sector: source.unwrap_or(&factory[0]).sector,
+            }
+        })
+        .collect();
+    if !entries.iter().any(|entry| entry.enabled)
+        && let Some(first) = entries.first_mut()
+    {
+        first.enabled = true;
+    }
+    Some(entries)
+}
+
+/// A first directory sector listing `entries`, laid out like `rom_directory`: the same
+/// size, the factory entries' reserved byte (`0xFF` on the G502 X), `0xFF` after the
+/// list, and a checksum.
+///
+/// # Panics
+///
+/// When the entries and the end marker do not fit in the sector.
+#[must_use]
+pub fn initial_directory(rom_directory: &[u8], entries: &[InitialEntry]) -> Vec<u8> {
+    let reserved = rom_directory.get(3).copied().unwrap_or(0xFF);
+    let mut data = vec![0xFF; rom_directory.len()];
+    assert!(
+        (entries.len() + 1) * DIRECTORY_ENTRY_LEN + 2 <= data.len(),
+        "directory entries fit in the sector"
+    );
+    for (entry, slot) in entries
+        .iter()
+        .zip(data.as_chunks_mut::<DIRECTORY_ENTRY_LEN>().0)
+    {
+        let [hi, lo] = entry.sector.to_be_bytes();
+        *slot = [hi, lo, u8::from(entry.enabled), reserved];
+    }
+    with_crc(data)
+}
+
+/// `sector` with its last two bytes replaced by a checksum over the rest, as a user sector
+/// stores it. Factory sectors carry no checksum, so this turns a copy of one into a user
+/// profile.
+#[must_use]
+pub fn with_crc(mut sector: Vec<u8>) -> Vec<u8> {
+    let crc_at = sector.len() - 2;
+    let crc = crc_ccitt(&sector[..crc_at]);
+    sector[crc_at..].copy_from_slice(&crc.to_be_bytes());
+    sector
 }
 
 pub(crate) fn decode_name(raw: &[u8]) -> Option<String> {
@@ -568,6 +660,67 @@ mod tests {
 
         let entries = directory_entries_for_repair(&damaged, 5).expect("entries check out");
         assert_eq!(rebuilt_directory(&damaged, entries.len()), original);
+    }
+
+    #[test]
+    fn a_first_directory_from_the_factory_profiles_matches_the_g502x_memory() {
+        // The wired G502 X's user memory is its factory profiles copied with checksums:
+        // profiles 1 and 2 from factory profiles 1 and 2, profiles 3 to 5 from factory
+        // profile 1 and off. Built from the factory sectors alone, it comes out the same.
+        let rom_directory = sector("0100");
+        let entries = initial_entries(&rom_directory, 2, 5).expect("factory profiles");
+        let listed: Vec<_> = entries
+            .iter()
+            .map(|e| (e.sector, e.enabled, e.factory_sector))
+            .collect();
+        assert_eq!(
+            listed,
+            [
+                (1, true, 0x0101),
+                (2, true, 0x0102),
+                (3, false, 0x0101),
+                (4, false, 0x0101),
+                (5, false, 0x0101)
+            ]
+        );
+        assert_eq!(initial_directory(&rom_directory, &entries), sector("0000"));
+        for entry in &entries {
+            let id = format!("{:04x}", entry.sector);
+            let factory = sector(&format!("{:04x}", entry.factory_sector));
+            assert_eq!(with_crc(factory), sector(&id), "sector {id}");
+        }
+    }
+
+    #[test]
+    fn a_first_directory_turns_on_at_least_one_profile() {
+        let mut rom_directory = sector("0100");
+        rom_directory[2] = 0x00;
+        rom_directory[6] = 0x00;
+        let entries = initial_entries(&rom_directory, 2, 5).expect("factory profiles");
+        let on: Vec<_> = entries.iter().map(|e| e.enabled).collect();
+        assert_eq!(on, [true, false, false, false, false]);
+    }
+
+    #[test]
+    fn a_first_directory_needs_factory_profiles() {
+        let mut rom_directory = sector("0100");
+        assert!(initial_entries(&rom_directory, 0, 5).is_none());
+        rom_directory[..2].copy_from_slice(&[0xFF, 0xFF]);
+        assert!(initial_entries(&rom_directory, 2, 5).is_none());
+        rom_directory[..2].copy_from_slice(&[0x00, 0x01]);
+        assert!(
+            initial_entries(&rom_directory, 2, 5).is_none(),
+            "a user sector is not a factory profile"
+        );
+    }
+
+    #[test]
+    fn only_erased_memory_counts_as_never_written() {
+        assert!(directory_never_written(&[0xFF; 255]));
+        let mut damaged = [0xFF; 255];
+        damaged[254] = 0x00;
+        assert!(!directory_never_written(&damaged));
+        assert!(!directory_never_written(&sector("0000")));
     }
 
     #[test]

@@ -15,6 +15,16 @@ All notable changes are listed here. The project follows
 
 ### Fixed
 
+- A mouse whose profile directory was never written can be set up. A G502 X Lightspeed
+  that G HUB never configured reads its directory as erased flash (every byte `0xff`)
+  and runs its factory profiles; Omalogi refused it as a damaged directory, and
+  `omalogi profiles repair` could not rebuild a list with no entries, so the mouse could
+  not be used at all. Omalogi now says the mouse has no directory yet, and `repair` (or
+  the overlay's Repair) sets one up from the factory profiles as libratbag does: each
+  user profile a copy of its factory profile with a checksum, on where the factory
+  profile is, the directory written last. Built from a wired G502 X's factory profiles,
+  this reproduces that mouse's own user memory byte for byte. The backup taken first
+  also saves the user sectors the setup writes.
 - The G502 Lightspeed (USB 046d:c08d and wireless product id 407f) was named
   "G502 Hero Wireless", which is libratbag's name for those ids and not the
   product. The mouse reports "G502 LIGHTSPEED Wireless Gaming Mouse". The wired
