@@ -249,7 +249,12 @@ impl HidrawChannel {
                     source,
                 },
             })?;
-        let file = AsyncFd::new(file).map_err(|source| HidrawError::Io { path, source })?;
+        // SAFETY: the `AsyncFd` owns `file`, so its descriptor stays open and the same until
+        // the `AsyncFd` is dropped.
+        let file = unsafe { AsyncFd::register(file) }.map_err(|error| HidrawError::Io {
+            path,
+            source: error.into_parts().1,
+        })?;
         Ok(Self {
             file,
             node,
