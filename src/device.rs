@@ -292,23 +292,25 @@ impl Session {
             match feature.get_fw_info(entity).await {
                 Ok(info) => firmware.push(Firmware {
                     kind: format!("{:?}", info.entity_type),
-                    // `openlogi-hidpp` already decodes these from packed BCD.
+                    // `openlogi-hidpp` already decodes these from packed BCD, or as a
+                    // binary number when a field is not BCD: a G502 Lightspeed
+                    // Softdevice reports build 0x00a9 (AprilNEA/OpenLogi#1790). That
+                    // entity's prefix is three NUL bytes.
                     version: format!(
                         "{} {:02}.{:02}.B{:04}",
-                        info.firmware_prefix.trim(),
+                        info.firmware_prefix
+                            .trim_matches(|c: char| c == '\0' || c.is_whitespace()),
                         info.firmware_number,
                         info.revision,
                         info.build
-                    ),
+                    )
+                    .trim_start()
+                    .to_owned(),
                     active: info.active,
                 }),
-                // 0.8.13 rejects a version field that is not packed BCD, and that used
-                // to fail `info()` before DPI was read. A G502 Lightspeed Softdevice
-                // reports build 0x00a9, which is binary. OpenLogi 0.8.15+ decodes it
-                // (AprilNEA/OpenLogi#1790). Until this pin moves there, keep the other
-                // entities and say this one could not be read. The same error also
-                // covers an unknown entity type or a prefix that is not text, so the
-                // version does not name a cause.
+                // A prefix that is not text still fails the entity, and that used to fail
+                // `info()` before DPI was read. Keep the other entities and say this one
+                // could not be read.
                 Err(Hidpp20Error::UnsupportedResponse) => firmware.push(Firmware {
                     kind: format!("entity {entity}"),
                     version: "unreadable".to_owned(),
