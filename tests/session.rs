@@ -75,11 +75,7 @@ async fn info_keeps_going_when_a_firmware_entity_is_not_bcd() {
     let firmware: Vec<_> = info.firmware.iter().map(|f| f.version.as_str()).collect();
     assert_eq!(
         firmware,
-        [
-            "BL1 59.00.B0002",
-            "U1 60.00.B0009",
-            "unreadable (firmware version is not packed BCD)",
-        ]
+        ["BL1 59.00.B0002", "U1 60.00.B0009", "unreadable"]
     );
     assert!(!info.firmware[2].active);
     assert_eq!(info.dpi, 1600);

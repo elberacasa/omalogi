@@ -306,10 +306,12 @@ impl Session {
                 // to fail `info()` before DPI was read. A G502 Lightspeed Softdevice
                 // reports build 0x00a9, which is binary. OpenLogi 0.8.15+ decodes it
                 // (AprilNEA/OpenLogi#1790). Until this pin moves there, keep the other
-                // entities and say this one could not be read.
+                // entities and say this one could not be read. The same error also
+                // covers an unknown entity type or a prefix that is not text, so the
+                // version does not name a cause.
                 Err(Hidpp20Error::UnsupportedResponse) => firmware.push(Firmware {
                     kind: format!("entity {entity}"),
-                    version: "unreadable (firmware version is not packed BCD)".to_owned(),
+                    version: "unreadable".to_owned(),
                     active: false,
                 }),
                 Err(error) => return Err(error.into()),
