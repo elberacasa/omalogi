@@ -46,7 +46,10 @@ const fn untested(product_id: u16, name: &'static str) -> SupportedDevice {
 
 /// Wired G-series mice with HID++ 2.0 onboard profiles. The verified mice come first:
 /// the G502 X, then the G502 Hero. The untested models and their USB ids come from
-/// libratbag's device database (`data/devices/*.device`, MIT).
+/// libratbag's device database (`data/devices/*.device`, MIT). libratbag calls
+/// 046d:c08d "G502 Hero Wireless"; that is not the product. The mouse's own HID name
+/// is "G502 LIGHTSPEED Wireless Gaming Mouse", and the kernel lists c08d as the G502
+/// Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. c08d stays untested.
 pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     verified(0xC099, "G502 X"),
     verified(0xC08B, "G502 Hero"),
@@ -63,7 +66,7 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     untested(0xC087, "G703"),
     untested(0xC088, "G Pro Wireless"),
     untested(0xC08C, "G Pro"),
-    untested(0xC08D, "G502 Hero Wireless"),
+    untested(0xC08D, "G502 Lightspeed"),
     untested(0xC08E, "MX518"),
     untested(0xC08F, "G403 Hero"),
     untested(0xC090, "G703 Hero"),
@@ -81,7 +84,8 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
 /// Wireless G-series mice with onboard profiles, by the wireless product id (WPID) their
 /// receiver reports, from libratbag's device database. They are reached through
 /// OpenLogi's receiver support (see [`crate::wireless`]). The verified G502 X Lightspeed
-/// comes first; the rest are untested.
+/// comes first; the rest are untested. WPID 407f is the same G502 Lightspeed as USB
+/// c08d (libratbag pairs the two ids in `logitech-g502-hero-wireless.device`).
 pub const WIRELESS_DEVICES: &[SupportedDevice] = &[
     verified(0x409F, "G502 X Lightspeed"),
     untested(0x402C, "G602"),
@@ -92,7 +96,7 @@ pub const WIRELESS_DEVICES: &[SupportedDevice] = &[
     untested(0x4070, "G703"),
     untested(0x4074, "G305"),
     untested(0x4079, "G Pro Wireless"),
-    untested(0x407F, "G502 Hero Wireless"),
+    untested(0x407F, "G502 Lightspeed"),
     untested(0x4085, "G604"),
     untested(0x4086, "G703 Hero"),
     untested(0x4087, "G903 Hero"),
@@ -446,6 +450,18 @@ mod tests {
         assert_eq!(WIRELESS_DEVICES[0].product_id, 0x409F);
         assert!(WIRELESS_DEVICES[0].verified);
         assert_eq!(WIRELESS_DEVICES.iter().filter(|d| d.verified).count(), 1);
+        let lightspeed = SUPPORTED_DEVICES
+            .iter()
+            .find(|device| device.product_id == 0xC08D)
+            .expect("wired G502 Lightspeed");
+        let lightspeed_wireless = WIRELESS_DEVICES
+            .iter()
+            .find(|device| device.product_id == 0x407F)
+            .expect("wireless G502 Lightspeed");
+        assert_eq!(lightspeed.name, "G502 Lightspeed");
+        assert_eq!(lightspeed_wireless.name, "G502 Lightspeed");
+        assert!(!lightspeed.verified);
+        assert!(!lightspeed_wireless.verified);
         assert!(WIRELESS_DEVICES.iter().all(|w| {
             SUPPORTED_DEVICES
                 .iter()

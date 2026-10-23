@@ -289,19 +289,33 @@ impl Session {
         let count = feature.get_device_info().await?.entity_count;
         let mut firmware = Vec::with_capacity(count.into());
         for entity in 0..count {
-            let info = feature.get_fw_info(entity).await?;
-            firmware.push(Firmware {
-                kind: format!("{:?}", info.entity_type),
-                // `openlogi-hidpp` already decodes these from packed BCD.
-                version: format!(
-                    "{} {:02}.{:02}.B{:04}",
-                    info.firmware_prefix.trim(),
-                    info.firmware_number,
-                    info.revision,
-                    info.build
-                ),
-                active: info.active,
-            });
+            match feature.get_fw_info(entity).await {
+                Ok(info) => firmware.push(Firmware {
+                    kind: format!("{:?}", info.entity_type),
+                    // `openlogi-hidpp` already decodes these from packed BCD.
+                    version: format!(
+                        "{} {:02}.{:02}.B{:04}",
+                        info.firmware_prefix.trim(),
+                        info.firmware_number,
+                        info.revision,
+                        info.build
+                    ),
+                    active: info.active,
+                }),
+                // 0.8.13 rejects a version field that is not packed BCD, and that used
+                // to fail `info()` before DPI was read. A G502 Lightspeed Softdevice
+                // reports build 0x00a9, which is binary. OpenLogi 0.8.15+ decodes it
+                // (AprilNEA/OpenLogi#1790). Until this pin moves there, keep the other
+                // entities and say this one could not be read. The same error also
+                // covers an unknown entity type or a prefix that is not text, so the
+                // version does not name a cause.
+                Err(Hidpp20Error::UnsupportedResponse) => firmware.push(Firmware {
+                    kind: format!("entity {entity}"),
+                    version: "unreadable".to_owned(),
+                    active: false,
+                }),
+                Err(error) => return Err(error.into()),
+            }
         }
         Ok(firmware)
     }
