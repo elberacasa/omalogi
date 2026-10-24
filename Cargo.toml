@@ -1,6 +1,6 @@
 [package]
 name = "omalogi"
-version = "0.3.7"
+version = "0.3.8"
 edition = "2024"
 rust-version = "1.99"
 description = "Configure Logitech G-series mice on Omarchy"
