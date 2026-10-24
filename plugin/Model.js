@@ -137,6 +137,14 @@ function needsAcceptance(support) {
   return !!support && !support.verified && !!support.editable && !support.accepted
 }
 
+// The mouse to ask about when the helper refused a write until the user accepts it, or
+// null. From protocol 6 the refusal carries the mouse's support, since it can come before
+// any `state` answered, as when the profile directory is set up. Older helpers only say
+// so in the message.
+function refusedUntilAccepted(kind, reply) {
+  return kind === "not_accepted" && reply && reply.support ? reply.support : null
+}
+
 // Whether the helper runs `omalogi check` for the accept dialog (protocol 6). Older
 // helpers accept an untested mouse without it.
 function canCheck(state) {

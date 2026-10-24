@@ -51,6 +51,11 @@ All notable changes are listed here. The project follows
 
 - `omalogi accept-untested` linked to an issue form that no longer exists. It now links
   to the Mouse report form and points to `omalogi verify`.
+- On an untested mouse not accepted yet, the overlay's **Repair** and **Set up** buttons
+  failed with an error the card gave no way past. The overlay now asks to accept the
+  mouse, with the read check, and then repairs. The refusal names the mouse, kind
+  `not_accepted`, since no `state` answered yet. `omalogi serve` also no longer saves a
+  backup before refusing a write that was not accepted.
 
 ## [0.3.8] - 2026-10-23
 

@@ -18,7 +18,9 @@
 //!
 //! An error the overlay can act on also names its `kind`: `directory_checksum` when the
 //! profile directory fails its checksum or was never written, which `repair_directory`
-//! fixes, and `check_failed` when `accept_untested` refuses a mouse that fails the check.
+//! fixes, `check_failed` when `accept_untested` refuses a mouse that fails the check, and
+//! `not_accepted` when a write needs the user to accept an untested mouse first. That one
+//! also carries the mouse's `support`, since the request that failed may be the first.
 //!
 //! The device lock is held for each request, never while idle, so the daemon and CLI
 //! commands take turns with the server. Writes keep the CLI's guarantees: all profile
@@ -51,7 +53,8 @@ pub const SOFTWARE_ID: u8 = 0x0D;
 /// 3: errors carry a `kind`, and `repair_directory` rebuilds a damaged profile directory.
 /// 4: `live` answers the active profile and the sensor's DPI with two short requests.
 /// 5: the helper has `omalogi verify`, which the overlay runs for an untested mouse.
-/// 6: `check` runs `omalogi check`, and `accept_untested` refuses a mouse that fails it.
+/// 6: `check` runs `omalogi check`, `accept_untested` refuses a mouse that fails it, and
+///    a write to an untested mouse not yet accepted fails with kind `not_accepted`.
 pub const PROTOCOL: u32 = 6;
 
 /// Where to save a backup for a device name.
@@ -100,6 +103,8 @@ enum Command {
 struct Failure {
     message: String,
     kind: Option<&'static str>,
+    /// For `not_accepted`: the mouse to ask about.
+    support: Option<Value>,
 }
 
 impl From<String> for Failure {
@@ -107,6 +112,7 @@ impl From<String> for Failure {
         Self {
             message,
             kind: None,
+            support: None,
         }
     }
 }
@@ -129,17 +135,17 @@ impl Failure {
             ) {
                 kind = Some("directory_checksum");
             }
-            if matches!(
-                error.downcast_ref::<EditError>(),
-                Some(EditError::CheckFailed { .. })
-            ) {
-                kind = Some("check_failed");
+            match error.downcast_ref::<EditError>() {
+                Some(EditError::CheckFailed { .. }) => kind = Some("check_failed"),
+                Some(EditError::NotAccepted { .. }) => kind = Some("not_accepted"),
+                _ => {}
             }
             source = error.source();
         }
         Self {
             message: error_chain(error),
             kind,
+            support: None,
         }
     }
 }
@@ -237,20 +243,34 @@ impl Server {
                     // Each request holds the device lock for all of its traffic: requests
                     // from two processes at once can time out or read the wrong bytes.
                     let outcome = match self.lock() {
-                        Ok(_lock) => self.handle(request.command).await,
+                        Ok(_lock) => {
+                            let mut outcome = self.handle(request.command).await;
+                            if let Err(failure) = &mut outcome
+                                && failure.kind == Some("not_accepted")
+                            {
+                                failure.support = self
+                                    .session
+                                    .support()
+                                    .await
+                                    .ok()
+                                    .and_then(|support| serde_json::to_value(support).ok());
+                            }
+                            outcome
+                        }
                         Err(error) => Err(Failure::new(error.as_ref())),
                     };
                     match outcome {
                         Ok(result) => json!({ "id": request.id, "ok": true, "result": result }),
-                        Err(Failure {
-                            message,
-                            kind: None,
-                        }) => json!({ "id": request.id, "ok": false, "error": message }),
-                        Err(Failure {
-                            message,
-                            kind: Some(kind),
-                        }) => {
-                            json!({ "id": request.id, "ok": false, "error": message, "kind": kind })
+                        Err(failure) => {
+                            let mut response =
+                                json!({ "id": request.id, "ok": false, "error": failure.message });
+                            if let Some(kind) = failure.kind {
+                                response["kind"] = kind.into();
+                            }
+                            if let Some(support) = failure.support {
+                                response["support"] = support;
+                            }
+                            response
                         }
                     }
                 }
@@ -332,8 +352,10 @@ impl Server {
         }
     }
 
-    /// Saves a backup of all profile memory before this session's first write.
+    /// Saves a backup of all profile memory before this session's first write. A write the
+    /// user has not accepted is refused first, so it leaves no backup behind.
     async fn ensure_backup(&mut self) -> Result<(), Box<dyn Error>> {
+        self.session.ensure_writes_accepted().await?;
         if self.backup.is_none() {
             let backup = self.session.backup().await?;
             let path = (self.backup_path)(self.session.model().name)?;
