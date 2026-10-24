@@ -12,7 +12,7 @@ use openlogi_core::device::{DeviceInventory, DeviceKind};
 use openlogi_hid::DeviceRoute;
 use thiserror::Error;
 
-use crate::hidraw::{SupportedDevice, WIRELESS_DEVICES};
+use crate::hidraw::{SupportedDevice, WIRELESS_DEVICES, intern, unlisted};
 
 #[derive(Debug, Error)]
 #[error("could not look for wireless mice: {0}")]
@@ -29,8 +29,21 @@ pub struct WirelessMouse {
 
 /// The online wireless mice Omalogi knows, from an OpenLogi inventory. Mice attached
 /// directly are left to the wired path, which finds them faster.
+/// Online mice behind receivers that Omalogi lists, by their wireless id.
 #[must_use]
 pub fn known_mice(inventories: &[DeviceInventory]) -> Vec<WirelessMouse> {
+    mice(inventories, true)
+}
+
+/// Online mice behind receivers that Omalogi does not list, for a session to ask whether
+/// each is a mouse it can edit. Named by the receiver's codename for them until the
+/// mouse says its own name.
+#[must_use]
+pub fn unlisted_mice(inventories: &[DeviceInventory]) -> Vec<WirelessMouse> {
+    mice(inventories, false)
+}
+
+fn mice(inventories: &[DeviceInventory], listed: bool) -> Vec<WirelessMouse> {
     inventories
         .iter()
         .flat_map(|inventory| {
@@ -38,19 +51,32 @@ pub fn known_mice(inventories: &[DeviceInventory]) -> Vec<WirelessMouse> {
                 if device.kind != DeviceKind::Mouse || !device.online {
                     return None;
                 }
-                // The WPID when the receiver reported it, else the mouse's own model ids.
                 let mut ids = device.wpid.into_iter().chain(
                     device
                         .model_info
                         .iter()
                         .flat_map(|info| info.model_ids.iter().copied()),
                 );
-                let model = ids.find_map(|id| {
+                let known = ids.find_map(|id| {
                     WIRELESS_DEVICES
                         .iter()
                         .find(|model| model.product_id == id)
                         .copied()
-                })?;
+                });
+                let model = match (known, listed) {
+                    (Some(model), true) => model,
+                    (None, false) => {
+                        let id = device.wpid?;
+                        let name = device
+                            .codename
+                            .as_deref()
+                            .map(str::trim)
+                            .filter(|name| !name.is_empty())
+                            .map_or_else(|| format!("mouse {id:04x}"), str::to_owned);
+                        unlisted(id, intern(&name))
+                    }
+                    _ => return None,
+                };
                 let route = DeviceRoute::for_slot(inventory, device.slot)?;
                 if matches!(route, DeviceRoute::Direct { .. }) {
                     return None;
@@ -65,27 +91,36 @@ pub fn known_mice(inventories: &[DeviceInventory]) -> Vec<WirelessMouse> {
         .collect()
 }
 
-/// The known wireless mice online right now.
-pub async fn find() -> Result<Vec<WirelessMouse>, WirelessError> {
-    let inventories = openlogi_hid::enumerate()
+async fn inventories() -> Result<Vec<DeviceInventory>, WirelessError> {
+    openlogi_hid::enumerate()
         .await
-        .map_err(|error| WirelessError(error.to_string()))?;
-    Ok(known_mice(&inventories))
+        .map_err(|error| WirelessError(error.to_string()))
 }
 
-/// The first known wireless mouse, with a HID++ channel to its receiver.
+pub async fn find() -> Result<Vec<WirelessMouse>, WirelessError> {
+    Ok(known_mice(&inventories().await?))
+}
+
+/// Opens the channel to `mouse`'s receiver slot.
+pub async fn channel(mouse: &WirelessMouse) -> Result<Arc<HidppChannel>, WirelessError> {
+    openlogi_hid::channel_pool()
+        .open(&mouse.route)
+        .await
+        .map_err(|error| WirelessError(error.to_string()))?
+        .ok_or_else(|| WirelessError(format!("the receiver of the {} is gone", mouse.model.name)))
+}
+
 pub async fn open() -> Result<Option<(WirelessMouse, Arc<HidppChannel>)>, WirelessError> {
     let Some(mouse) = find().await?.into_iter().next() else {
         return Ok(None);
     };
-    let channel = openlogi_hid::channel_pool()
-        .open(&mouse.route)
-        .await
-        .map_err(|error| WirelessError(error.to_string()))?
-        .ok_or_else(|| {
-            WirelessError(format!("the receiver of the {} is gone", mouse.model.name))
-        })?;
+    let channel = channel(&mouse).await?;
     Ok(Some((mouse, channel)))
+}
+
+/// The unlisted mice behind receivers, without opening them.
+pub async fn find_unlisted() -> Result<Vec<WirelessMouse>, WirelessError> {
+    Ok(unlisted_mice(&inventories().await?))
 }
 
 #[cfg(test)]
@@ -143,6 +178,35 @@ mod tests {
         assert_eq!(mice[0].route.device_index(), 1);
         assert!(matches!(mice[0].route, DeviceRoute::Unifying { .. }));
         assert_eq!(mice[0].path, "Lightspeed Receiver, slot 1");
+    }
+
+    #[test]
+    fn unlisted_mice_are_the_online_mice_omalogi_does_not_list() {
+        let mut named = paired(4, Some(0x40A9), DeviceKind::Mouse, true);
+        named.codename = Some("PRO X 2".to_owned());
+        let inventories = [receiver(
+            0xC547,
+            Some("receiver-1"),
+            vec![
+                // Listed, asleep, a keyboard, then two that are not listed.
+                paired(1, Some(0x409F), DeviceKind::Mouse, true),
+                paired(2, Some(0x40AA), DeviceKind::Mouse, false),
+                paired(3, Some(0x407C), DeviceKind::Keyboard, true),
+                named,
+                paired(5, Some(0x40AB), DeviceKind::Mouse, true),
+            ],
+        )];
+        let mice = unlisted_mice(&inventories);
+        let found: Vec<_> = mice
+            .iter()
+            .map(|mouse| (mouse.model.product_id, mouse.model.name, mouse.model.listed))
+            .collect();
+        assert_eq!(
+            found,
+            [(0x40A9, "PRO X 2", false), (0x40AB, "mouse 40ab", false)]
+        );
+        assert!(mice.iter().all(|mouse| !mouse.model.verified));
+        assert_eq!(known_mice(&inventories).len(), 1, "listed ones stay apart");
     }
 
     #[test]

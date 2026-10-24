@@ -6,6 +6,9 @@ Read docs/agents/agent-guide.md and CONTRIBUTING.md ("Adding a device") first an
 I own a <model, e.g. Logitech G305> (USB id <046d:xxxx>, connected <wired / LIGHTSPEED
 receiver>) and want Omalogi to support it.
 
+0. If Omalogi already opens it as unlisted (`omalogi --json check` shows `"listed": false`),
+   start from `omalogi check` and `omalogi verify`: when both pass, adding it is step 4 with
+   the verify summary as the hardware evidence, and steps 1 to 3 can be skipped.
 1. Before any code, compare its HID++ feature list and onboard profile description with
    libratbag and Solaar data for this device, and tell me what you expect to differ from
    the G502 X. Cite the files you used.

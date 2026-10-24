@@ -10,8 +10,11 @@ use hidpp::{
     channel::{ChannelError, HidppChannel, RawHidChannel, RequestSwId, SwIdPolicy},
     device::{Device, DeviceError},
     feature::{
-        CreatableFeature, adjustable_dpi::AdjustableDpiFeature,
-        device_information::DeviceInformationFeature, report_rate::ReportRateFeature,
+        CreatableFeature,
+        adjustable_dpi::AdjustableDpiFeature,
+        device_information::DeviceInformationFeature,
+        device_type_and_name::{DeviceType, DeviceTypeAndNameFeature},
+        report_rate::ReportRateFeature,
     },
     nibble::U4,
     protocol::v20::{ErrorType, Hidpp20Error},
@@ -87,6 +90,20 @@ pub enum SessionError {
          change: change a profile's DPI stages with `omalogi profiles edit`"
     )]
     LiveDpiInOnboardMode,
+    // Starts like `HidrawError::NotFound`, so the overlay shows its usual card; the device
+    // may as well be a keyboard, which sysfs cannot tell apart without opening it.
+    #[error(
+        "no supported Logitech mouse found. The Logitech {name} (046d:{product_id:04x}) at \
+         {path} is a device Omalogi does not list and cannot open; if it is a mouse, try it \
+         for this session with `sudo setfacl -m u:$USER:rw {path}` and `omalogi check`, then \
+         please report the model with that result: \
+         https://github.com/elberacasa/omalogi/issues/new?template=mouse.yml"
+    )]
+    UnlistedNoAccess {
+        name: &'static str,
+        product_id: u16,
+        path: String,
+    },
     #[error("the device did not switch to profile {requested}; it reports profile {reported:?}")]
     SwitchNotApplied {
         requested: usize,
@@ -200,12 +217,87 @@ impl Session {
                     let index = mouse.route.device_index();
                     Self::on_channel(channel, index, mouse.model, mouse.path).await?
                 }
-                None => return Err(HidrawError::NotFound.into()),
+                None => Self::open_unlisted(software_id).await?,
             },
             Err(error) => return Err(error.into()),
         };
         session.consent = crate::consent::default_path();
         Ok(session)
+    }
+
+    /// The first Logitech mouse Omalogi does not list that answers, with reads only, that it
+    /// is a mouse with onboard profiles in a layout Omalogi reads: wired first, then behind
+    /// a receiver. Keyboards, headsets and anything else that does not are left alone.
+    async fn open_unlisted(software_id: u8) -> Result<Self, SessionError> {
+        let mut blocked = None;
+        for node in hidraw::find_unlisted() {
+            let path = node.path.display().to_string();
+            let model = node.device;
+            match HidrawChannel::open(node) {
+                Ok(raw) => {
+                    if let Ok(mut session) = Self::connect(raw, model, path, software_id).await
+                        && session.is_editable_mouse().await
+                    {
+                        return Ok(session);
+                    }
+                }
+                Err(HidrawError::PermissionDenied { path }) => {
+                    blocked.get_or_insert(SessionError::UnlistedNoAccess {
+                        name: model.name,
+                        product_id: model.product_id,
+                        path,
+                    });
+                }
+                Err(_) => {}
+            }
+        }
+        // The listed wireless lookup just before reports receiver errors; here one only
+        // means there is no unlisted wireless mouse to offer.
+        let wireless = crate::wireless::find_unlisted().await.unwrap_or_default();
+        for mouse in wireless {
+            let Ok(channel) = crate::wireless::channel(&mouse).await else {
+                continue;
+            };
+            let index = mouse.route.device_index();
+            if let Ok(mut session) = Self::on_channel(channel, index, mouse.model, mouse.path).await
+                && session.is_editable_mouse().await
+            {
+                return Ok(session);
+            }
+        }
+        Err(blocked.unwrap_or_else(|| HidrawError::NotFound.into()))
+    }
+
+    /// Whether this device says it is a mouse (0x0005) with onboard profiles (0x8100) in a
+    /// layout Omalogi reads. Every request is a read. The model then takes the name the
+    /// mouse reports.
+    pub async fn is_editable_mouse(&mut self) -> bool {
+        let Ok(names) = self
+            .feature::<DeviceTypeAndNameFeature>("device type and name (0x0005)")
+            .await
+        else {
+            return false;
+        };
+        if !matches!(names.get_device_type().await, Ok(DeviceType::Mouse)) {
+            return false;
+        }
+        let decodable = match self.onboard_feature().await {
+            Ok(feature) => feature
+                .description()
+                .await
+                .is_ok_and(|description| description.is_decodable()),
+            Err(_) => false,
+        };
+        if decodable
+            && !self.model.listed
+            && let Ok(name) = names.get_whole_device_name().await
+        {
+            let name = name.trim();
+            if !name.is_empty() {
+                self.model.name = hidraw::intern(name);
+            }
+        }
+        decodable
     }
 
     /// Where acceptances to edit untested mice are read and recorded; `None` refuses them.

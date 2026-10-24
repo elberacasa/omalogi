@@ -38,6 +38,8 @@ pub struct Support {
     pub name: &'static str,
     /// The model and its profile layout were verified on real hardware.
     pub verified: bool,
+    /// Omalogi lists the model. An unlisted one was found by asking the mouse.
+    pub listed: bool,
     /// Omalogi can read and edit this profile layout.
     pub editable: bool,
     /// Edits are allowed: the mouse is verified, or the user accepted it.
@@ -103,6 +105,7 @@ impl Session {
         Ok(Support {
             name: model.name,
             verified,
+            listed: model.listed,
             editable: description.is_decodable(),
             accepted,
             memory_model: description.memory_model,

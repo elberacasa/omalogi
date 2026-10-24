@@ -70,8 +70,10 @@ pub fn check(report: &CheckReport) -> String {
         report.product_id,
         if report.support.verified {
             "verified on real hardware"
-        } else {
+        } else if report.support.listed {
             "not verified yet"
+        } else {
+            "not listed yet: found by asking the mouse, and not verified"
         }
     );
     let _ = writeln!(out, "Mode: {}", mode(report.mode));

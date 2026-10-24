@@ -54,6 +54,15 @@ plugged in with its cable is used first.
 
 </details>
 
+**A mouse not listed above** still works when it says it can. With no listed mouse
+connected, Omalogi asks each other Logitech device, with reads only, whether it is a mouse
+with onboard profiles in a layout Omalogi reads; keyboards, headsets and anything else
+that does not are left alone. A mouse that passes is opened as **unlisted** and edited
+like an untested one. Through a receiver this works out of the box. Over USB, the udev
+rule only grants access to listed models, so Omalogi names the mouse and gives the
+command to try it for one session. Please run `omalogi check` and `omalogi verify` on it
+and send the report, so it can be listed.
+
 Mice without onboard profiles, such as the MX series, are not supported: for those,
 see [OpenLogi](https://github.com/AprilNEA/OpenLogi). To help verify a mouse, see
 [#15](https://github.com/elberacasa/omalogi/issues/15), which lists every model and who

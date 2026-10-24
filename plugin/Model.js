@@ -106,10 +106,15 @@ function supportBadge(support, selfTest) {
       detail: "Omalogi cannot read this mouse's profile layout (format " + support.profile_format + ") yet."
     }
   }
+  // Helpers before 0.3.9 report no `listed`: every mouse they open is listed.
+  var unlisted = support.listed === false
   return {
-    text: "Untested",
+    text: unlisted ? "Unlisted" : "Untested",
     action: "Help verify it",
-    detail: "Omalogi has not been tested on the " + support.name + " yet. Every change is backed up and verified." +
+    detail: (unlisted
+      ? "Omalogi does not list the " + support.name + " yet: it found it by asking the mouse."
+      : "Omalogi has not been tested on the " + support.name + " yet.") +
+      " Every change is backed up and verified." +
       (selfTest ? " Help verify it runs the self-test in a terminal, on a spare profile, and puts everything back." : "")
   }
 }

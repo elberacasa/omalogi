@@ -5,6 +5,19 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Added
+
+- Mice Omalogi does not list are opened when they say they can be. With no listed mouse
+  connected, each other Logitech HID++ device is asked, with reads only, whether it is a
+  mouse (`DeviceTypeAndName`, 0x0005) with onboard profiles (0x8100) in a layout Omalogi
+  reads; receivers are never asked, and keyboards, headsets and anything else are left
+  alone. A mouse that passes takes the name it reports, is shown as **Unlisted** in the
+  overlay, and is edited only after the user accepts, like any untested mouse; `state`
+  and `omalogi check` report `listed`. Through a receiver this needs nothing more. A
+  wired one is usually not readable, since the udev rule grants access to listed models
+  only; Omalogi then names it, gives the command to try it for one session, and asks for
+  a report. Listed mice are found exactly as before.
+
 ## [0.3.8] - 2026-10-23
 
 ### Added

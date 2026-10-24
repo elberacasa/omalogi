@@ -1246,6 +1246,7 @@ mod tests {
             support: Support {
                 name: "G502 X",
                 verified: false,
+                listed: true,
                 editable: true,
                 accepted: true,
                 memory_model: 1,
