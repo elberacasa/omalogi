@@ -80,14 +80,17 @@ pub fn intern(name: &str) -> &'static str {
 }
 
 /// Wired G-series mice with HID++ 2.0 onboard profiles. The verified mice come first:
-/// the G502 X, then the G502 Hero. The untested models and their USB ids come from
+/// the G502 X, the G502 Hero, then the G502 Lightspeed. The untested models and their
+/// USB ids come from
 /// libratbag's device database (`data/devices/*.device`, MIT). libratbag calls
 /// 046d:c08d "G502 Hero Wireless"; that is not the product. The mouse's own HID name
 /// is "G502 LIGHTSPEED Wireless Gaming Mouse", and the kernel lists c08d as the G502
-/// Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. c08d stays untested.
+/// Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. USB c08d and receiver
+/// WPID 407f are the same G502 Lightspeed, and both are verified.
 pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     verified(0xC099, "G502 X"),
     verified(0xC08B, "G502 Hero"),
+    verified(0xC08D, "G502 Lightspeed"),
     untested(0xC07D, "G502 Proteus Core"),
     untested(0xC07E, "G402"),
     untested(0xC07F, "G302"),
@@ -101,7 +104,6 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     untested(0xC087, "G703"),
     untested(0xC088, "G Pro Wireless"),
     untested(0xC08C, "G Pro"),
-    untested(0xC08D, "G502 Lightspeed"),
     untested(0xC08E, "MX518"),
     untested(0xC08F, "G403 Hero"),
     untested(0xC090, "G703 Hero"),
@@ -118,11 +120,12 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
 
 /// Wireless G-series mice with onboard profiles, by the wireless product id (WPID) their
 /// receiver reports, from libratbag's device database. They are reached through
-/// OpenLogi's receiver support (see [`crate::wireless`]). The verified G502 X Lightspeed
-/// comes first; the rest are untested. WPID 407f is the same G502 Lightspeed as USB
-/// c08d (libratbag pairs the two ids in `logitech-g502-hero-wireless.device`).
+/// OpenLogi's receiver support (see [`crate::wireless`]). The verified mice come first:
+/// the G502 X Lightspeed, then the G502 Lightspeed. WPID 407f is the same G502 Lightspeed
+/// as USB c08d (libratbag pairs the two ids in `logitech-g502-hero-wireless.device`).
 pub const WIRELESS_DEVICES: &[SupportedDevice] = &[
     verified(0x409F, "G502 X Lightspeed"),
+    verified(0x407F, "G502 Lightspeed"),
     untested(0x402C, "G602"),
     untested(0x4053, "G900"),
     untested(0x405D, "G403 Wireless"),
@@ -131,7 +134,6 @@ pub const WIRELESS_DEVICES: &[SupportedDevice] = &[
     untested(0x4070, "G703"),
     untested(0x4074, "G305"),
     untested(0x4079, "G Pro Wireless"),
-    untested(0x407F, "G502 Lightspeed"),
     untested(0x4085, "G604"),
     untested(0x4086, "G703 Hero"),
     untested(0x4087, "G903 Hero"),
@@ -573,9 +575,11 @@ mod tests {
     fn the_verified_mouse_is_listed_first_and_ids_are_unique() {
         assert!(SUPPORTED_DEVICES[0].verified);
         assert_eq!(SUPPORTED_DEVICES[0].product_id, 0xC099);
-        assert_eq!(SUPPORTED_DEVICES.iter().filter(|d| d.verified).count(), 2);
+        assert_eq!(SUPPORTED_DEVICES.iter().filter(|d| d.verified).count(), 3);
         assert_eq!(SUPPORTED_DEVICES[1].product_id, 0xC08B);
         assert!(SUPPORTED_DEVICES[1].verified);
+        assert_eq!(SUPPORTED_DEVICES[2].product_id, 0xC08D);
+        assert!(SUPPORTED_DEVICES[2].verified);
         let mut ids: Vec<u16> = SUPPORTED_DEVICES.iter().map(|d| d.product_id).collect();
         ids.sort_unstable();
         ids.dedup();
@@ -583,14 +587,16 @@ mod tests {
     }
 
     #[test]
-    fn wireless_ids_are_unique_and_not_usb_ids_and_only_the_g502_x_lightspeed_is_verified() {
+    fn wireless_ids_are_unique_and_not_usb_ids_and_the_verified_ones_come_first() {
         let mut ids: Vec<u16> = WIRELESS_DEVICES.iter().map(|d| d.product_id).collect();
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), WIRELESS_DEVICES.len());
         assert_eq!(WIRELESS_DEVICES[0].product_id, 0x409F);
         assert!(WIRELESS_DEVICES[0].verified);
-        assert_eq!(WIRELESS_DEVICES.iter().filter(|d| d.verified).count(), 1);
+        assert_eq!(WIRELESS_DEVICES[1].product_id, 0x407F);
+        assert!(WIRELESS_DEVICES[1].verified);
+        assert_eq!(WIRELESS_DEVICES.iter().filter(|d| d.verified).count(), 2);
         let lightspeed = SUPPORTED_DEVICES
             .iter()
             .find(|device| device.product_id == 0xC08D)
@@ -601,8 +607,8 @@ mod tests {
             .expect("wireless G502 Lightspeed");
         assert_eq!(lightspeed.name, "G502 Lightspeed");
         assert_eq!(lightspeed_wireless.name, "G502 Lightspeed");
-        assert!(!lightspeed.verified);
-        assert!(!lightspeed_wireless.verified);
+        assert!(lightspeed.verified);
+        assert!(lightspeed_wireless.verified);
         assert!(WIRELESS_DEVICES.iter().all(|w| {
             SUPPORTED_DEVICES
                 .iter()

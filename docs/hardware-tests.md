@@ -488,6 +488,44 @@ with the mouse's buttons before the run is not kept. The prompt says so.
 
 Result: **pass**.
 
+## 2026-10-24: G502 Lightspeed through its LIGHTSPEED receiver
+
+Device: Logitech G502 Lightspeed, through its LIGHTSPEED receiver, slot 1, WPID 407f,
+firmware BOT 92.00.B0008, MPM 17.00.B0008 (active) and Softdevice 00.00.B0169. Host:
+Arch Linux (Omarchy 4.0.6, Hyprland 0.56.2). Helper `omalogi` 0.3.8, onboard mode.
+Profiles 1 and 2 on, 3 to 5 off, profile 2 in use. Wired USB id c08d was not connected.
+
+| Step | Result |
+|---|---|
+| `omalogi check` | 29 checks passed. Nothing written. Layout memory model 1, profile format 3, already in `VERIFIED_LAYOUTS` |
+| `omalogi verify --yes` | profile 3, the first one turned off. **1810 checks passed, 0 failed, 103 s** |
+| Timings | `apply` median 888 ms (88 requests, max 1267 ms); `set_enabled` median 2029 ms (6 requests) |
+| Notes | slot 8 on both layers stayed as the mouse stores it; slot 11 is past the 11 buttons and was refused; unsorted stages read back as `[1600, 800, null, null, null]` |
+| Restore | every sector was as it was before the test. A later `omalogi profiles` matched the listing from before the run: profile 2 in use, profiles 3 to 5 off |
+
+The test switches to the test profile and back, so the mouse then runs the home profile's
+default DPI. Profile 2's default was already the DPI the mouse was running.
+
+Result: **pass**.
+
+## 2026-10-24: G502 Lightspeed over USB
+
+Same mouse as the receiver run above, now opened on its cable. Device: Logitech G502
+Lightspeed, USB 046d:c08d, firmware BOT 92.00.B0008, MPM 17.00.B0008 (active) and
+Softdevice 00.00.B0169. The LIGHTSPEED receiver was still plugged in; Omalogi opened the
+cable. Host: Arch Linux (Omarchy 4.0.6, Hyprland 0.56.2). Helper `omalogi` 0.3.8,
+onboard mode. Profiles 1 and 2 on, 3 to 5 off, profile 2 in use.
+
+| Step | Result |
+|---|---|
+| `omalogi check` | 29 checks passed. Nothing written. Layout memory model 1, profile format 3, already in `VERIFIED_LAYOUTS` |
+| `omalogi verify --yes` | profile 3, the first one turned off. **1810 checks passed, 0 failed, 30 s** |
+| Timings | `apply` median 247 ms (88 requests, max 597 ms); `set_enabled` median 575 ms (6 requests) |
+| Notes | slot 8 on both layers stayed as the mouse stores it; slot 11 is past the 11 buttons and was refused; unsorted stages read back as `[1600, 800, null, null, null]` |
+| Restore | every sector was as it was before the test. A later `omalogi profiles` matched the listing from before the run: profile 2 in use, profiles 3 to 5 off |
+
+Result: **pass**. USB 046d:c08d and receiver WPID 407f are both verified. The wired G502 X Lightspeed (c098) is a different mouse and stays untested.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after
