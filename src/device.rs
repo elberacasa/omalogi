@@ -14,7 +14,7 @@ use hidpp::{
         device_information::DeviceInformationFeature, report_rate::ReportRateFeature,
     },
     nibble::U4,
-    protocol::v20::Hidpp20Error,
+    protocol::v20::{ErrorType, Hidpp20Error},
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -82,6 +82,11 @@ pub enum SessionError {
     ProfileDisabled(usize),
     #[error("profiles can only be switched in onboard mode; the device is in {0:?} mode")]
     NotOnboardMode(Mode),
+    #[error(
+        "the mouse runs its onboard profiles, which set the DPI, so it refuses a live DPI \
+         change: change a profile's DPI stages with `omalogi profiles edit`"
+    )]
+    LiveDpiInOnboardMode,
     #[error("the device did not switch to profile {requested}; it reports profile {reported:?}")]
     SwitchNotApplied {
         requested: usize,
@@ -367,7 +372,16 @@ impl Session {
         let dpi = self
             .feature::<AdjustableDpiFeature>("adjustable DPI (0x2201)")
             .await?;
-        dpi.set_sensor_dpi(0, value).await?;
+        if let Err(error) = dpi.set_sensor_dpi(0, value).await {
+            // A G502 X in onboard mode answers InvalidArgument, for a DPI it lists too
+            // (docs/hardware-tests.md, 2026-09-13).
+            if matches!(error, Hidpp20Error::Feature(ErrorType::InvalidArgument))
+                && self.onboard_feature().await?.mode().await? == Mode::Onboard
+            {
+                return Err(SessionError::LiveDpiInOnboardMode);
+            }
+            return Err(error.into());
+        }
         Ok(dpi.get_sensor_dpi(0).await?)
     }
 

@@ -507,13 +507,22 @@ pub fn initial_entries(
     Some(entries)
 }
 
+/// Whether a first directory for `profile_count` profiles fits the mouse: profile N goes in
+/// user sector N, after the directory in sector 0, and the directory holds every entry,
+/// the end marker and a checksum.
+#[must_use]
+pub fn first_directory_fits(profile_count: usize, sector_count: usize, sector_size: usize) -> bool {
+    profile_count < sector_count && (profile_count + 1) * DIRECTORY_ENTRY_LEN + 2 <= sector_size
+}
+
 /// A first directory sector listing `entries`, laid out like `rom_directory`: the same
 /// size, the factory entries' reserved byte (`0xFF` on the G502 X), `0xFF` after the
 /// list, and a checksum.
 ///
 /// # Panics
 ///
-/// When the entries and the end marker do not fit in the sector.
+/// When the entries and the end marker do not fit in the sector, which
+/// [`first_directory_fits`] rules out.
 #[must_use]
 pub fn initial_directory(rom_directory: &[u8], entries: &[InitialEntry]) -> Vec<u8> {
     let reserved = rom_directory.get(3).copied().unwrap_or(0xFF);
@@ -712,6 +721,22 @@ mod tests {
             initial_entries(&rom_directory, 2, 5).is_none(),
             "a user sector is not a factory profile"
         );
+    }
+
+    #[test]
+    fn a_first_directory_needs_a_sector_per_profile_and_room_for_its_entries() {
+        // The G502 X: five profiles in 16 sectors of 255 bytes.
+        assert!(first_directory_fits(5, 16, 255));
+        assert!(first_directory_fits(5, 6, 255), "sectors 0 to 5");
+        assert!(
+            !first_directory_fits(5, 5, 255),
+            "no sector left for profile 5"
+        );
+        assert!(
+            first_directory_fits(5, 16, 26),
+            "five entries, the end marker, a checksum"
+        );
+        assert!(!first_directory_fits(5, 16, 25));
     }
 
     #[test]

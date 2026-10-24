@@ -110,6 +110,15 @@ pub enum EditError {
          to set it up from"
     )]
     NoFactoryProfiles,
+    #[error(
+        "the profile directory was never written, and the mouse's {profiles} profiles do not \
+         fit its {sectors} user sectors of {size} bytes, so it was not set up"
+    )]
+    NoRoomForProfiles {
+        profiles: usize,
+        sectors: usize,
+        size: usize,
+    },
     #[error("`{0}` is not a usable profile name: use up to 47 printable ASCII characters")]
     InvalidName(String),
     #[error("profile {0} is in use; activate another profile before turning it off")]
@@ -941,6 +950,17 @@ async fn plan_first_directory(
     previous: Vec<u8>,
 ) -> Result<DirectoryRepair, EditError> {
     let size = description.sector_size;
+    let (profiles, sectors) = (
+        usize::from(description.profile_count),
+        usize::from(description.sector_count),
+    );
+    if !format::first_directory_fits(profiles, sectors, size.into()) {
+        return Err(EditError::NoRoomForProfiles {
+            profiles,
+            sectors,
+            size: size.into(),
+        });
+    }
     let rom_directory = feature
         .read_sector(format::ROM_DIRECTORY_SECTOR, size)
         .await?;

@@ -667,6 +667,23 @@ test("the setup screen names the one step that reaches the mouse", () => {
   assert.equal(Model.setupState("device request failed"), "error")
   assert.equal(Model.setupState("the onboard profile directory's checksum does not match", "directory_checksum"), "directory")
   assert.equal(
+    Model.setupState(
+      "the mouse has no profile directory yet, so it runs its factory profiles: run `omalogi profiles repair` to set one up from them",
+      "directory_checksum"
+    ),
+    "first_directory",
+    "a mouse that never had a profile list is set up, not repaired"
+  )
+  assert.equal(Model.setupCopy("first_directory").action, "Set up")
+  assert.equal(Model.setupCopy("first_directory").installer, false)
+  assert.equal(Model.setupCopy("directory").body.indexOf("factory"), -1, "the repair card is only about a damaged list")
+  assert.equal(Model.repairNotice({ backup: "/b.json", repair: { never_written: true } }),
+    "Set up the profiles from the factory profiles. Backup saved to /b.json")
+  assert.equal(Model.repairNotice({ backup: "/b.json", repair: { never_written: false } }),
+    "Repaired the profile list. Backup saved to /b.json")
+  assert.equal(Model.repairNotice({ backup: "/b.json" }), "Repaired the profile list. Backup saved to /b.json",
+    "helpers before 0.3.7 do not report never_written")
+  assert.equal(
     Model.setupState("the onboard profile directory has an invalid checksum; the device may never have had profiles written"),
     "outdated",
     "helpers before protocol 3 cannot repair the directory"

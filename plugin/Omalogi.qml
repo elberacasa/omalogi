@@ -410,7 +410,7 @@ Item {
   // in the installer.
   function runSetupAction() {
     if (root.setupKind === "stale") root.restartShell()
-    else if (root.setupKind === "directory") root.repairDirectory()
+    else if (root.setupKind === "directory" || root.setupKind === "first_directory") root.repairDirectory()
     else root.installHelper()
   }
 
@@ -437,7 +437,7 @@ Item {
       root.loadError = ""
       root.loadErrorKind = ""
       root.refresh()
-      root.say("Repaired the profile list. Backup saved to " + result.backup, false)
+      root.say(Model.repairNotice(result), false)
     })
   }
 

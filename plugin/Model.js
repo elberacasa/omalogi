@@ -69,10 +69,14 @@ function staleShell(manifest) {
 var REQUIRED_PROTOCOL = 4
 
 // What stops Omalogi reaching the mouse, from a failed load's message: "helper" (not
-// installed), "access" (no permission), "device" (no mouse), or "error".
+// installed), "access" (no permission), "device" (no mouse), "directory" (a damaged
+// profile list), "first_directory" (no profile list yet), or "error".
 function setupState(message, kind) {
-  if (kind === "directory_checksum") return "directory"
   var text = String(message || "")
+  if (kind === "directory_checksum") {
+    // Both come with the same kind, so helpers from before 0.3.7 still get the repair card.
+    return text.indexOf("has no profile directory yet") !== -1 ? "first_directory" : "directory"
+  }
   if (text === "") return ""
   // Helpers before protocol 3 refuse a damaged profile directory with no way to repair it.
   if (text.indexOf("profile directory has an invalid checksum") !== -1) return "outdated"
@@ -175,8 +179,15 @@ function setupCopy(kind, message) {
   case "directory":
     return {
       title: "Repair the profile list on your mouse",
-      body: "The list of profiles stored on your mouse fails its checksum, so Omalogi is not changing anything. Repair first checks that every profile it lists is intact, backs up the mouse's memory, then rewrites only that list and verifies it. A mouse that has never had a list, and runs its factory profiles, gets one set up from those profiles instead.",
+      body: "The list of profiles stored on your mouse fails its checksum, so Omalogi is not changing anything. Repair first checks that every profile it lists is intact, backs up the mouse's memory, then rewrites only that list and verifies it.",
       action: "Repair",
+      installer: false
+    }
+  case "first_directory":
+    return {
+      title: "Set up the profiles on your mouse",
+      body: "Your mouse has never had its own profiles written, so it runs its factory profiles and Omalogi has nothing to edit yet. Setting up backs up the mouse's memory, copies the factory profiles into its own, then writes the list of them last, verifying every write. The mouse works as before until you change something.",
+      action: "Set up",
       installer: false
     }
   case "device":
@@ -189,6 +200,14 @@ function setupCopy(kind, message) {
   default:
     return { title: "Omalogi could not read your mouse", body: String(message || ""), action: "", installer: false }
   }
+}
+
+// The notice after `repair_directory` succeeds. Helpers before 0.3.7 do not say whether
+// the list was set up, so they get the repair wording.
+function repairNotice(result) {
+  var setUp = !!(result && result.repair && result.repair.never_written)
+  return (setUp ? "Set up the profiles from the factory profiles." : "Repaired the profile list.") +
+    " Backup saved to " + (result ? result.backup : "")
 }
 
 function clampCursor(cursor, count) {

@@ -43,6 +43,23 @@ fn profile_switch_requests(state: &Mutex<State>, onboard_index: u8) -> usize {
 }
 
 #[tokio::test]
+async fn a_live_dpi_change_in_onboard_mode_says_why_it_is_refused() {
+    let (mut session, _, _) = connect().await;
+    let result = session.set_live_dpi(800).await;
+    assert!(
+        matches!(result, Err(SessionError::LiveDpiInOnboardMode)),
+        "{result:?}"
+    );
+    assert!(
+        result
+            .expect_err("refused")
+            .to_string()
+            .contains("omalogi profiles edit"),
+        "points at the profile DPI stages"
+    );
+}
+
+#[tokio::test]
 async fn reads_device_info() {
     let (mut session, _, _) = connect().await;
     let info = session.info().await.expect("info");
