@@ -9,6 +9,7 @@ use std::{
 };
 
 use omalogi::{
+    check::Outcome,
     device::{CLI_SOFTWARE_ID, Session},
     editing::{BackupFile, EditError, ProfileChanges, TakesEffect, save_backup},
     hidraw::SUPPORTED_DEVICES,
@@ -994,4 +995,92 @@ async fn the_profile_in_use_stays_in_use_when_the_directory_changes() {
     let state = h.state.lock().expect("state");
     assert_eq!(state.current_profile, 2);
     assert_eq!(state.loads, [2, 2]);
+}
+
+fn outcome_of(report: &omalogi::check::CheckReport, check: &str) -> Vec<Outcome> {
+    report
+        .findings
+        .iter()
+        .filter(|finding| finding.check == check)
+        .map(|finding| finding.outcome)
+        .collect()
+}
+
+#[tokio::test]
+async fn the_check_passes_on_a_g502x_and_writes_nothing() {
+    let mut h = Harness::new("check").await;
+    let report = h.session.check().await.expect("check");
+    assert_eq!(report.outcome, Outcome::Pass, "{:#?}", report.findings);
+    assert_eq!(outcome_of(&report, "checksum"), [Outcome::Pass; 5]);
+    assert_eq!(outcome_of(&report, "live_dpi"), [Outcome::Pass]);
+    assert!(report.support.verified);
+    assert_eq!(h.write_requests(), 0);
+}
+
+#[tokio::test]
+async fn the_check_reports_a_profile_that_fails_its_checksum() {
+    let mut h = Harness::new("check-damaged").await;
+    h.state
+        .lock()
+        .expect("state")
+        .sectors
+        .get_mut(&2)
+        .expect("sector 2")[10] ^= 0xFF;
+    let report = h.session.check().await.expect("check");
+    assert_eq!(report.outcome, Outcome::Fail);
+    assert_eq!(
+        outcome_of(&report, "checksum"),
+        [
+            Outcome::Pass,
+            Outcome::Fail,
+            Outcome::Pass,
+            Outcome::Pass,
+            Outcome::Pass
+        ]
+    );
+    assert!(
+        report
+            .findings
+            .iter()
+            .all(|finding| finding.profile != Some(2) || finding.check == "checksum"),
+        "a damaged profile is not decoded"
+    );
+    assert_eq!(h.write_requests(), 0);
+}
+
+#[tokio::test]
+async fn the_check_points_a_mouse_with_no_directory_at_the_setup() {
+    let mut h = Harness::new_with("check-blank", FakeG502x::new().with_blank_user_memory()).await;
+    let report = h.session.check().await.expect("check");
+    assert_eq!(report.outcome, Outcome::Warn);
+    assert_eq!(outcome_of(&report, "directory"), [Outcome::Warn]);
+    assert!(
+        report.findings[1]
+            .detail
+            .contains("omalogi profiles repair")
+    );
+    assert_eq!(h.write_requests(), 0);
+}
+
+#[tokio::test]
+async fn the_check_fails_a_layout_omalogi_does_not_read() {
+    let mut h = Harness::new_with("check-layout", FakeG502x::new().with_profile_format(9)).await;
+    let report = h.session.check().await.expect("check");
+    assert_eq!(report.outcome, Outcome::Fail);
+    assert_eq!(report.findings.len(), 1);
+    assert_eq!(outcome_of(&report, "layout"), [Outcome::Fail]);
+    assert!(!report.support.editable);
+}
+
+#[tokio::test]
+async fn an_untested_layout_is_checked_like_a_verified_one() {
+    let mut h = Harness::new_with("check-untested", FakeG502x::new().with_profile_format(5)).await;
+    let report = h.session.check().await.expect("check");
+    assert_eq!(report.outcome, Outcome::Pass, "{:#?}", report.findings);
+    assert!(
+        report.findings[0]
+            .detail
+            .contains("not tested on hardware yet")
+    );
+    assert!(!report.support.verified);
 }

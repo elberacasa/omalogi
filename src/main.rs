@@ -11,7 +11,9 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use omalogi::{
-    assets, daemon,
+    assets,
+    check::Outcome,
+    daemon,
     device::{CLI_SOFTWARE_ID, Session},
     editing::{BackupFile, DirectoryRepair, ProfileChanges, save_backup},
     error_chain,
@@ -87,6 +89,13 @@ enum Command {
 enum DeviceCommand {
     /// Show the connected device, firmware, DPI and report rate.
     Info,
+    /// Check that Omalogi reads this mouse's profiles as the mouse does, without writing.
+    ///
+    /// Compares every profile with its checksum, a second read, the bytes each decoded
+    /// value encodes back to, and the DPI and report rate the mouse reports. Exits with
+    /// status 1 when a check fails. The report holds no unit ID or profile memory, so it
+    /// can be posted in an issue.
+    Check,
     /// List onboard profiles with their DPI stages and button bindings.
     Profiles {
         #[command(subcommand)]
@@ -351,6 +360,17 @@ async fn run_device(json: bool, command: DeviceCommand) -> Result<(), Box<dyn Er
         DeviceCommand::Info => {
             let info = session.info().await?;
             output(json, &info, || text::info(&info))?;
+        }
+        DeviceCommand::Check => {
+            let report = session.check().await?;
+            output(json, &report, || text::check(&report))?;
+            if report.outcome == Outcome::Fail {
+                return Err(
+                    "a check failed; do not edit this mouse's profiles until it is \
+                            understood, and please report it"
+                        .into(),
+                );
+            }
         }
         DeviceCommand::Profiles { action: None } => {
             let state = session.onboard().await?;

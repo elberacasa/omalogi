@@ -5,6 +5,17 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Added
+
+- `omalogi check` reads every onboard profile and says whether Omalogi reads it as the
+  mouse does, writing nothing. It checks each profile's checksum and that it reads the
+  same twice, that every decoded field written back through the editor reproduces the
+  sector byte for byte, that each binding encodes back to its bytes and its action text
+  reads back as itself, that DPI stages and the report rate are ones the mouse lists, and
+  that the profile in use matches the DPI and rate the mouse runs at. It exits with
+  status 1 when a check fails, and its report (`--json` too) holds no unit ID or profile
+  memory, so it can be posted in an issue. Verifying a mouse starts with it.
+
 ## [0.3.7] - 2026-10-23
 
 ### Changed
