@@ -394,7 +394,8 @@ async fn run_device(json: bool, command: DeviceCommand) -> Result<(), Box<dyn Er
             })
             .await?;
             output(json, &report, || text::verify(&report))?;
-            if !json {
+            // A verified model needs no report; an untested one is verified by sending it.
+            if !json && !report.support.verified {
                 offer_to_open(&report.issue_url());
             }
             if report.outcome == Outcome::Fail {
@@ -676,6 +677,8 @@ fn confirm_verify(
     );
     eprintln!("about a hundred times. The mouse stays usable, and no other profile is edited.");
     eprintln!("All profile memory is backed up first and put back byte for byte at the end.");
+    eprintln!("Near the end it switches to the test profile and back, so the mouse then runs your");
+    eprintln!("profile's default DPI, as after any profile switch.");
     if !support.verified {
         eprintln!(
             "The {} is not verified yet, so starting also accepts editing it.",

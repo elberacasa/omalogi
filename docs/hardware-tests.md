@@ -463,6 +463,31 @@ profiles (`tests/fixtures/g502x-c099.json`), and the mouse behaved as before unt
 The erased state cannot be written back (a restore never writes a sector saved with an
 invalid checksum), so this run cannot be repeated on the same mouse.
 
+## 2026-10-23: `omalogi verify`, the self-test built into the helper
+
+Device: Logitech G502 X, wired (046d:c099), firmware U1 60.00.B0009. Host: Arch Linux
+(Omarchy 4.0.6, Hyprland 0.56.2). The release build of the `omalogi verify` branch, run
+with `--yes` while the daemon was running; it held the device lock for the whole run.
+Profiles 1 to 3 on, 4 and 5 off, profile 3 in use.
+
+| Step | Result |
+|---|---|
+| A backup taken by hand before the run | 9 sectors |
+| `omalogi check`, run by `verify` first | passed |
+| Slot picked | profile 4, the first one turned off; turned on and named "Omalogi Test" |
+| The six phases, through an in-process `serve` | **1980 checks passed, 0 failed, 32 s**; `apply` median 271 ms (88 requests), as with the script |
+| Notes | slot 11 is past the 11 buttons and refused; unsorted stages read back as written |
+| Sectors besides the directory and profile 4 | unchanged |
+| Restore of the run's own backup, then a fresh backup | identical to it |
+| A backup taken by hand after the run | identical to the one before it in all 9 sectors |
+| Afterwards | profile 3 in use, profiles 4 and 5 off, `omalogi check` passes all 29 checks, daemon active |
+
+The live DPI was the profile's default (1600) afterwards: the test switches to the test
+profile and back, and a G502 X in onboard mode refuses a live DPI change, so a DPI picked
+with the mouse's buttons before the run is not kept. The prompt says so.
+
+Result: **pass**.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after
