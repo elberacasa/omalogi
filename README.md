@@ -18,6 +18,7 @@ mouse's profile memory before every write, and reads every write back to verify 
 | Logitech G502 X (wired) | 046d:c099 | **Verified** on real hardware (firmware U1 60.00.B0009) |
 | Logitech G502 Hero (wired) | 046d:c08b | **Verified** on real hardware (firmware U1 27.03.B0010) |
 | Logitech G502 X Lightspeed (through its receiver) | WPID 409f | **Verified** on real hardware (firmware MPM 30.00.B0014) |
+| Logitech G502 Lightspeed (through its receiver) | WPID 407f | **Verified** on real hardware (firmware MPM 17.00.B0008) |
 | Other wired G-series mice with onboard profiles | see below | **Untested** |
 
 Untested mice use the same onboard memory family as the G502 X, which libratbag reads and
@@ -46,7 +47,7 @@ for a cable connection.
 <details>
 <summary>Untested wireless models, through a LIGHTSPEED, Bolt or Unifying receiver</summary>
 
-G305, G403 Wireless, G502 Lightspeed, G502 X Plus, G602, G603, G604, G703,
+G305, G403 Wireless, G502 X Plus, G602, G603, G604, G703,
 G703 Hero, G705, G900, G903, G903 Hero, G Pro Wireless, G Pro X Superlight.
 Omalogi finds them with [OpenLogi](https://github.com/AprilNEA/OpenLogi)'s device layer,
 which handles the receivers, and edits them the same way as a wired mouse. A mouse

@@ -30,6 +30,10 @@ All notable changes are listed here. The project follows
   firmware, mode and support. Never the unit ID, the device path or profile memory.
   Cards with their own fix (install the helper, allow access, plug in the mouse,
   repair the profile list) keep that one action.
+- The Logitech G502 Lightspeed through its LIGHTSPEED receiver (WPID 407f) is verified
+  on real hardware (firmware MPM 17.00.B0008). Profile layout (1, 3) was already
+  verified with the G502 X Lightspeed, so it needs no acceptance before a write. The
+  wired G502 Lightspeed (c08d) stays untested (#88).
 
 ## [0.3.8] - 2026-10-23
 
