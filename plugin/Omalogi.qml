@@ -42,6 +42,8 @@ Item {
   // Whether the badge runs the self-test (Model.canSelfTest).
   property bool selfTest: false
   property bool acceptOpen: false
+  // What accepting goes on to do: "save" the waiting edits, or "repair" the directory.
+  property string acceptThen: "save"
   // The read-only check the accept dialog runs first (Model.canCheck): the helper's
   // report, or why it could not run.
   property bool canCheck: false
@@ -291,6 +293,7 @@ Item {
     }
     // An untested mouse is written only after the user accepts it, once.
     if (Model.needsAcceptance(root.support)) {
+      root.acceptThen = "save"
       root.openAccept()
       return false
     }
@@ -442,12 +445,22 @@ Item {
   }
 
   // Rebuilds a damaged profile directory, then reads the mouse again. A directory the
-  // helper will not rebuild keeps the card, with the reason and the way to restore.
+  // helper will not rebuild keeps the card, with the reason and the way to restore. An
+  // untested mouse is accepted first, and the repair runs again after.
   function repairDirectory() {
     if (root.loading) return
     root.loading = true
-    server.request({ cmd: "repair_directory" }, function(ok, result, kind) {
+    server.request({ cmd: "repair_directory" }, function(ok, result, kind, reply) {
       root.loading = false
+      var refused = Model.refusedUntilAccepted(kind, reply)
+      if (refused !== null) {
+        root.support = refused
+        // Only helpers with the check (protocol 6) carry the mouse in the refusal.
+        root.canCheck = true
+        root.acceptThen = "repair"
+        root.openAccept()
+        return
+      }
       if (!ok) {
         root.loadError = result
         root.loadErrorKind = kind || ""
@@ -498,13 +511,18 @@ Item {
   // The helper checks again and refuses a mouse that fails, whatever the dialog showed.
   function acceptUntested() {
     root.acceptOpen = false
-    server.request({ cmd: "accept_untested" }, function(ok, result) {
+    var then = root.acceptThen
+    root.acceptThen = "save"
+    server.request({ cmd: "accept_untested" }, function(ok, result, kind) {
       if (!ok) {
-        root.say("Not saved: " + result, true)
+        // A refused repair stays on the setup card, which says why.
+        if (then === "repair") root.failLoad(result, kind)
+        else root.say("Not saved: " + result, true)
         return
       }
       root.support = result.support
-      root.save()
+      if (then === "repair") root.repairDirectory()
+      else root.save()
     })
   }
 

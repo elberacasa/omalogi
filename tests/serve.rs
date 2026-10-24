@@ -381,3 +381,90 @@ async fn an_untested_mouse_that_fails_the_check_is_not_accepted() {
     assert!(!dir.join("untested.json").exists(), "nothing was recorded");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn an_untested_mouse_is_accepted_before_its_directory_is_set_up() {
+    let dir = test_dir("untested-repair");
+    let _ = std::fs::remove_dir_all(&dir);
+    let device = FakeG502x::new()
+        .with_product_id(0xC07D)
+        .with_blank_user_memory();
+    let state = device.state();
+    let model = *SUPPORTED_DEVICES
+        .iter()
+        .find(|device| device.product_id == 0xC07D)
+        .expect("a known model");
+    let mut session = Session::connect(device, model, "emulated".to_owned(), serve::SOFTWARE_ID)
+        .await
+        .expect("session starts");
+    session.set_consent_path(Some(dir.join("untested.json")));
+    let mut server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+        backup_in("untested-repair")
+    });
+
+    let (client, server_side) = tokio::io::duplex(1 << 20);
+    let (server_read, server_write) = tokio::io::split(server_side);
+    let (client_read, mut client_write) = tokio::io::split(client);
+
+    let backups = || {
+        std::fs::read_dir(&dir).map_or(0, |entries| {
+            entries
+                .filter(|entry| {
+                    entry.as_ref().is_ok_and(|entry| {
+                        entry.file_name().to_string_lossy().starts_with("backup")
+                    })
+                })
+                .count()
+        })
+    };
+
+    let script = async {
+        let mut responses = BufReader::new(client_read).lines();
+        let mut ask = async |request: Value| -> Value {
+            let line = format!("{request}\n");
+            client_write.write_all(line.as_bytes()).await.expect("send");
+            let reply = responses.next_line().await.expect("read").expect("a reply");
+            serde_json::from_str(&reply).expect("JSON reply")
+        };
+
+        let reply = ask(json!({ "id": 1, "cmd": "state" })).await;
+        assert_eq!(reply["kind"], "directory_checksum", "{reply}");
+
+        // `state` failed, so the refusal names the mouse for the overlay to ask about.
+        let reply = ask(json!({ "id": 2, "cmd": "repair_directory" })).await;
+        assert_eq!(reply["ok"], false, "{reply}");
+        assert_eq!(reply["kind"], "not_accepted");
+        assert_eq!(reply["support"]["name"], "G502 Proteus Core");
+        assert_eq!(reply["support"]["accepted"], false);
+        assert_eq!(backups(), 0, "a refused write leaves no backup");
+
+        let reply = ask(json!({ "id": 3, "cmd": "check" })).await;
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(
+            reply["result"]["outcome"], "warn",
+            "only the directory is noted"
+        );
+
+        let reply = ask(json!({ "id": 4, "cmd": "accept_untested" })).await;
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(reply["result"]["support"]["accepted"], true);
+
+        let reply = ask(json!({ "id": 5, "cmd": "repair_directory" })).await;
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(reply["result"]["repair"]["never_written"], true);
+        assert_eq!(backups(), 1, "backed up before setting up");
+        assert_eq!(
+            state.lock().expect("state").sectors[&0],
+            fixture_sectors()[&0]
+        );
+
+        drop(client_write);
+    };
+
+    let (served, ()) = tokio::join!(
+        server.run(BufReader::new(server_read), server_write),
+        script
+    );
+    served.expect("server ends cleanly");
+    let _ = std::fs::remove_dir_all(&dir);
+}

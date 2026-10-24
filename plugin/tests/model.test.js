@@ -840,3 +840,13 @@ test("checkSummary says what the read check found before accepting", () => {
   assert.equal(directory.outcome, "warn")
   assert.equal(directory.text, "Checked: nothing Omalogi read differs from the mouse (1 note in omalogi check).")
 })
+
+test("refusedUntilAccepted names the mouse a refused write asks about", () => {
+  const support = { name: "G502 Proteus Core", verified: false, editable: true, accepted: false }
+  const reply = { id: 2, ok: false, error: "the G502 Proteus Core has not been tested", kind: "not_accepted", support }
+  assert.deepEqual(plain(Model.refusedUntilAccepted("not_accepted", reply)), support)
+  assert.equal(Model.refusedUntilAccepted("not_accepted", { ...reply, support: undefined }), null,
+    "a refusal without the mouse cannot be asked about")
+  assert.equal(Model.refusedUntilAccepted("directory_checksum", reply), null)
+  assert.equal(Model.refusedUntilAccepted("", null), null, "older helpers name no kind")
+})
