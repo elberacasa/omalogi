@@ -17,6 +17,7 @@ mouse's profile memory before every write, and reads every write back to verify 
 |---|---|---|
 | Logitech G502 X (wired) | 046d:c099 | **Verified** on real hardware (firmware U1 60.00.B0009) |
 | Logitech G502 Hero (wired) | 046d:c08b | **Verified** on real hardware (firmware U1 27.03.B0010) |
+| Logitech G502 Lightspeed (wired) | 046d:c08d | **Verified** on real hardware (firmware MPM 17.00.B0008) |
 | Logitech G502 X Lightspeed (through its receiver) | WPID 409f | **Verified** on real hardware (firmware MPM 30.00.B0014) |
 | Logitech G502 Lightspeed (through its receiver) | WPID 407f | **Verified** on real hardware (firmware MPM 17.00.B0008) |
 | Other wired G-series mice with onboard profiles | see below | **Untested** |
@@ -36,7 +37,7 @@ Mouse report to send.
 
 G102/G203 (c084, c092, c09d), G302 (c07f), G303 (c080), G303 Shroud Edition (c097),
 G402 (c07e), G403 (c083), G403 Hero (c08f), G403 Wireless (c082),
-G502 Lightspeed (c08d), G502 Proteus Core (c07d), G502 Proteus Spectrum (c332),
+G502 Proteus Core (c07d), G502 Proteus Spectrum (c332),
 G502 X Lightspeed (c098), G502 X Plus (c095), G703 (c087), G703 Hero (c090), G705 (c096),
 G900 (c081), G903 (c086), G903 Hero (c091), G Pro (c085, c08c), G Pro Wireless (c088),
 G Pro X Superlight (c094), MX518 (c08e). Wireless models are listed here with their USB id
