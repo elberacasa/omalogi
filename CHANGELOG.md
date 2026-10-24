@@ -56,6 +56,13 @@ All notable changes are listed here. The project follows
   mouse, with the read check, and then repairs. The refusal names the mouse, kind
   `not_accepted`, since no `state` answered yet. `omalogi serve` also no longer saves a
   backup before refusing a write that was not accepted.
+- The G502 Lightspeed picture (depot `g502_wireless`, wireless product id 407f) draws a
+  line from each button to its dot. OpenLogi names those dots `g502wireless_g<N>_m1`,
+  and on this mouse g<N> is the name Logitech prints, so slot 4 is G5 and slot 5 is G6,
+  the opposite of the G502 X. The marker positions were checked against the factory
+  bindings and Logitech's quick-start guide.
+- Buttons with no dot on the picture wrap onto more rows instead of one, so they no
+  longer cover the default/G-Shift switch or the untested notice.
 
 ## [0.3.8] - 2026-10-23
 
