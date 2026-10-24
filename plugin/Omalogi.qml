@@ -34,6 +34,8 @@ Item {
   property string loadErrorKind: ""
   // The helper answered but is older than this plugin needs.
   property bool helperOutdated: false
+  // The helper's version and protocol from the last `state`, for problem reports.
+  property var helper: null
   // How far the connected mouse is verified (Model.support); untested mice ask once
   // before the first save.
   property var support: null
@@ -187,6 +189,7 @@ Item {
       }
       var first = root.onboard === null
       root.helperOutdated = Model.helperOutdated(result)
+      root.helper = result.helper || null
       root.support = Model.support(result)
       root.selfTest = Model.canSelfTest(result, root.support)
       root.info = result.info
@@ -479,6 +482,17 @@ Item {
   // Opens the new-device issue form, prefilled with the model and USB id.
   function reportDevice() {
     Qt.openUrlExternally(Model.reportUrl(root.info, root.support))
+  }
+
+  // Opens the bug report form, prefilled with the error and what the overlay knows about
+  // the helper and the mouse, never the unit ID or the device path.
+  function reportProblem(message) {
+    Qt.openUrlExternally(Model.problemReportUrl({
+      error: message,
+      helper: root.helper,
+      info: root.info,
+      support: root.support
+    }))
   }
 
   // The badge's action: the self-test when the helper has it, else the report form.
@@ -1043,6 +1057,16 @@ Item {
               font.pixelSize: Style.font.caption
             }
 
+            // A failed save, undo or repair says why in the footer; this reports it.
+            Button {
+              visible: root.notice !== "" && root.noticeIsError && !root.saving && !root.undoing
+              text: "Report"
+              bordered: true
+              foreground: Commons.Color.menu.text
+              fontFamily: Style.font.menuFamily
+              onClicked: root.reportProblem(root.notice)
+            }
+
             Button {
               visible: root.undoDepth > 0 || root.dirty
               text: "Undo"
@@ -1125,6 +1149,15 @@ Item {
                 bordered: true
                 foreground: Commons.Color.menu.text
                 onClicked: root.retry()
+              }
+
+              // Only for errors nothing on this card fixes.
+              Button {
+                visible: setupCard.copy.report === true
+                text: "Report a problem"
+                bordered: true
+                foreground: Commons.Color.menu.text
+                onClicked: root.reportProblem(root.loadError)
               }
             }
 

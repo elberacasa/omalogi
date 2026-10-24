@@ -24,6 +24,12 @@ All notable changes are listed here. The project follows
   wired one is usually not readable, since the udev rule grants access to listed models
   only; Omalogi then names it, gives the command to try it for one session, and asks for
   a report. Listed mice are found exactly as before.
+- **Report a problem** on the overlay's error card, and **Report** in its footer while
+  a save, undo or repair has failed. Each opens the bug report form prefilled with the
+  error, the plugin's and the helper's versions, and the mouse's model, product id,
+  firmware, mode and support. Never the unit ID, the device path or profile memory.
+  Cards with their own fix (install the helper, allow access, plug in the mouse,
+  repair the profile list) keep that one action.
 
 ## [0.3.8] - 2026-10-23
 

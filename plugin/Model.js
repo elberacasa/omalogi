@@ -218,8 +218,44 @@ function setupCopy(kind, message) {
       installer: false
     }
   default:
-    return { title: "Omalogi could not read your mouse", body: String(message || ""), action: "", installer: false }
+    return { title: "Omalogi could not read your mouse", body: String(message || ""), action: "", installer: false, report: true }
   }
+}
+
+// The longest error text a report link carries; the issue form takes the rest by hand.
+var REPORT_ERROR_LIMIT = 1500
+
+// The bug report form, prefilled with what the overlay knows: the error, this plugin's
+// and the helper's versions, and the mouse's model, product id, firmware and support.
+// Never the unit ID, the device path, or profile memory. `context` holds `error`, and
+// optionally `helper`, `info` and `support` from the last `state`.
+function problemReportUrl(context) {
+  var error = String(context && context.error || "").trim()
+  if (error.length > REPORT_ERROR_LIMIT) error = error.slice(0, REPORT_ERROR_LIMIT) + "…"
+  var info = context && context.info
+  var support = context && context.support
+  var helper = context && context.helper
+  var known = { plugin: VERSION, helper: helper ? { version: helper.version, protocol: helper.protocol } : "unknown" }
+  if (info) {
+    known.mouse = {
+      name: info.name,
+      device_id: hex4(info.vendor_id) + ":" + hex4(info.product_id),
+      firmware: activeFirmware(info),
+      mode: info.onboard_mode
+    }
+  }
+  if (support) {
+    known.support = { verified: !!support.verified, listed: support.listed !== false, layout: support.memory_model + "." + support.profile_format }
+  }
+  var fields = {
+    template: "bug.yml",
+    title: "Overlay: " + (error.split("\n")[0].slice(0, 80) || "a problem"),
+    what: "The overlay showed this error:\n\n" + (error || "(no message)") + "\n\nWhat I was doing: ",
+    info: JSON.stringify(known, null, 2)
+  }
+  return "https://github.com/elberacasa/omalogi/issues/new?" + Object.keys(fields).map(function(key) {
+    return key + "=" + encodeURIComponent(fields[key])
+  }).join("&")
 }
 
 // The notice after `repair_directory` succeeds. Helpers before 0.3.7 do not say whether
