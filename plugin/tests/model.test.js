@@ -697,6 +697,9 @@ test("the setup screen names the one step that reaches the mouse", () => {
   assert.equal(Model.setupCopy("directory").installer, false, "repairing runs no installer")
   assert.equal(Model.setupCopy("outdated").installer, true)
   assert.equal(Model.setupCopy("error", "device request failed").body, "device request failed")
+  assert.equal(Model.setupCopy("error", "device request failed").report, true, "an unknown error can be reported")
+  assert.ok(!Model.setupCopy("helper").report, "a card with its own fix does not offer a report")
+  assert.ok(!Model.setupCopy("device").report)
   assert.equal(Model.helperOutdated({ info: {}, onboard: {} }), true, "helpers that do not report a protocol speak 1, older than this plugin needs")
   assert.equal(Model.helperOutdated({ helper: { version: "0.1.9", protocol: 1 } }), true)
   assert.equal(Model.helperOutdated({ helper: { version: "0.2.0", protocol: 2 } }), true)
@@ -765,4 +768,31 @@ test("the plugin knows when the shell runs an older copy of it", () => {
   assert.equal(Model.staleShell({ version: "0.0.1" }), true)
   assert.equal(Model.staleShell({}), false, "a manifest without a version says nothing")
   assert.equal(Model.staleShell(null), false)
+})
+
+test("a problem report is prefilled without the unit ID or the device path", () => {
+  const info = {
+    name: "G502 X", vendor_id: 0x046d, product_id: 0xc099, path: "/dev/hidraw9",
+    firmware: [{ kind: "MainApplication", version: "U1 60.00.B0009", active: true }],
+    onboard_mode: "Onboard", dpi: 1600
+  }
+  const support = { name: "G502 X", verified: true, listed: true, editable: true, accepted: true, memory_model: 1, profile_format: 4 }
+  const url = Model.problemReportUrl({
+    error: "writing sector 0x0003 failed; it was put back",
+    helper: { version: "0.3.9", protocol: 5 }, info, support
+  })
+  const params = new URL(url).searchParams
+  assert.equal(params.get("template"), "bug.yml")
+  assert.equal(params.get("title"), "Overlay: writing sector 0x0003 failed; it was put back")
+  assert.match(params.get("what"), /writing sector 0x0003 failed/)
+  const known = JSON.parse(params.get("info"))
+  assert.equal(known.plugin, Model.VERSION)
+  assert.deepEqual(plain(known.helper), { version: "0.3.9", protocol: 5 })
+  assert.deepEqual(plain(known.mouse), { name: "G502 X", device_id: "046d:c099", firmware: "U1 60.00.B0009", mode: "Onboard" })
+  assert.deepEqual(plain(known.support), { verified: true, listed: true, layout: "1.4" })
+  assert.doesNotMatch(url, /hidraw/, "the device path stays local")
+
+  const bare = new URL(Model.problemReportUrl({ error: "x".repeat(5000) })).searchParams
+  assert.equal(JSON.parse(bare.get("info")).helper, "unknown", "a helper that never answered")
+  assert.ok(bare.get("what").length < 1700, "a long error is cut to fit a link")
 })
