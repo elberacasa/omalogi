@@ -14,7 +14,7 @@ body:
     attributes:
       label: What would you like to do?
       options:
-        - Verify it (I will run the 15-minute self-test)
+        - Verify it (I will run the self-test, `omalogi verify`)
         - Report how it works
         - Ask for a model Omalogi does not list
     validations:

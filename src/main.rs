@@ -4,8 +4,9 @@ mod text;
 
 use std::{
     error::Error,
+    io::{self, IsTerminal},
     path::PathBuf,
-    process::ExitCode,
+    process::{self, ExitCode},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -13,8 +14,9 @@ use clap::{Parser, Subcommand};
 use omalogi::{
     assets,
     check::Outcome,
+    consent::Support,
     daemon,
-    device::{CLI_SOFTWARE_ID, Session},
+    device::{CLI_SOFTWARE_ID, OnboardState, Session},
     editing::{BackupFile, DirectoryRepair, ProfileChanges, save_backup},
     error_chain,
     hidraw::{HidrawError, find_supported},
@@ -24,7 +26,7 @@ use omalogi::{
         format::Binding,
     },
     rules::Config,
-    serve, setup,
+    serve, setup, verify,
 };
 use serde::Serialize;
 
@@ -114,6 +116,22 @@ enum DeviceCommand {
     Dpi {
         /// The DPI to use right now, e.g. 1600.
         value: Option<u16>,
+    },
+    /// Run the hardware self-test: every edit the overlay can make, checked on the mouse.
+    ///
+    /// It uses a spare profile slot (the first one turned off, or --profile N), which it
+    /// turns on and names "Omalogi Test" while it runs. Bindings only change while that
+    /// profile is not in use, so the mouse stays usable. All profile memory is backed up
+    /// first and put back byte for byte at the end. It starts with `omalogi check` and
+    /// writes nothing if that fails. Exits with status 1 when a check fails.
+    Verify {
+        /// The profile slot to test on, instead of the first one turned off. It must not
+        /// be the profile in use.
+        #[arg(long)]
+        profile: Option<usize>,
+        /// Start without asking.
+        #[arg(long)]
+        yes: bool,
     },
     /// Write profile memory back from a backup. The current memory is backed up first.
     Restore {
@@ -299,7 +317,7 @@ async fn run_serve() -> Result<(), Box<dyn Error>> {
             open_session(serve::SOFTWARE_ID).await?
         }
     };
-    let server = serve::Server::new(session, DeviceLock::default_path(), default_backup_path);
+    let mut server = serve::Server::new(session, DeviceLock::default_path(), default_backup_path);
     server
         .run(
             tokio::io::BufReader::new(tokio::io::stdin()),
@@ -360,6 +378,33 @@ async fn run_device(json: bool, command: DeviceCommand) -> Result<(), Box<dyn Er
         DeviceCommand::Info => {
             let info = session.info().await?;
             output(json, &info, || text::info(&info))?;
+        }
+        DeviceCommand::Verify { profile, yes } => {
+            let onboard = session.onboard().await?;
+            let number = verify::pick_profile(&onboard, profile)?;
+            let support = session.support().await?;
+            if !yes && !confirm_verify(&support, &onboard, number)? {
+                return Err("the self-test did not start; nothing was written".into());
+            }
+            let options = verify::VerifyOptions {
+                profile: Some(number),
+            };
+            let report = verify::verify(session, &options, default_backup_path, &mut |line| {
+                eprintln!("{line}");
+            })
+            .await?;
+            output(json, &report, || text::verify(&report))?;
+            if !json {
+                offer_to_open(&report.issue_url());
+            }
+            if report.outcome == Outcome::Fail {
+                return Err(format!(
+                    "{} checks failed; profile memory was put back from {}",
+                    report.failures.len(),
+                    report.backup.display()
+                )
+                .into());
+            }
         }
         DeviceCommand::Check => {
             let report = session.check().await?;
@@ -607,6 +652,59 @@ async fn open_session(software_id: u8) -> Result<Session, Box<dyn Error>> {
 }
 
 /// Held for a whole memory write or restore, so the daemon never polls in the middle.
+/// Says what the self-test will do and asks to start it. Refuses without a terminal to ask
+/// on, so a script has to pass --yes.
+fn confirm_verify(
+    support: &Support,
+    onboard: &OnboardState,
+    number: usize,
+) -> Result<bool, Box<dyn Error>> {
+    if !io::stdin().is_terminal() {
+        return Err(
+            "the self-test writes to the mouse; pass --yes to start it without asking".into(),
+        );
+    }
+    let slot = &onboard.profiles[number - 1];
+    eprintln!(
+        "The self-test checks every edit Omalogi can make against what your {} reads back.",
+        support.name
+    );
+    eprintln!(
+        "It uses profile {number}, which is turned {}: it names it \"{}\" and writes to it",
+        if slot.enabled { "on" } else { "off" },
+        verify::TEST_PROFILE_NAME
+    );
+    eprintln!("about a hundred times. The mouse stays usable, and no other profile is edited.");
+    eprintln!("All profile memory is backed up first and put back byte for byte at the end.");
+    if !support.verified {
+        eprintln!(
+            "The {} is not verified yet, so starting also accepts editing it.",
+            support.name
+        );
+    }
+    eprintln!("It takes a few minutes. Leave the mouse plugged in until it says it is done.");
+    eprint!("Start the self-test? [y/N] ");
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(matches!(answer.trim(), "y" | "Y" | "yes" | "Yes"))
+}
+
+/// Prints the report link, and opens it in the browser when asked to.
+fn offer_to_open(url: &str) {
+    println!("\nSend the result, so this model can be marked verified for everyone:\n{url}");
+    if !io::stdin().is_terminal() {
+        return;
+    }
+    eprint!("Open it in your browser now? [y/N] ");
+    let mut answer = String::new();
+    if io::stdin().read_line(&mut answer).is_ok()
+        && matches!(answer.trim(), "y" | "Y" | "yes")
+        && let Err(error) = process::Command::new("xdg-open").arg(url).spawn()
+    {
+        eprintln!("omalogi: could not open the browser: {error}");
+    }
+}
+
 fn device_lock() -> Result<Option<DeviceLock>, Box<dyn Error>> {
     let Some(path) = DeviceLock::default_path() else {
         return Ok(None);

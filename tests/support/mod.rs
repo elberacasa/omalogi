@@ -59,6 +59,8 @@ pub struct State {
     pub pending_write: Option<PendingWrite>,
     /// When set, the next committed write stores a flipped first byte.
     pub corrupt_next_write: bool,
+    /// When set, the committed write with this index (0-based) stores a flipped first byte.
+    pub corrupt_write_number: Option<usize>,
     /// When set, a committed write to the profile directory makes the firmware report
     /// this profile as current, without loading it. A wired G502 X and a G502 X Lightspeed
     /// both move their current profile when a profile before the active one is turned on
@@ -156,6 +158,7 @@ impl FakeG502x {
             sectors,
             pending_write: None,
             corrupt_next_write: false,
+            corrupt_write_number: None,
             current_after_directory_write: None,
             committed: Vec::new(),
             requests: Vec::new(),
@@ -363,11 +366,29 @@ impl FakeG502x {
                 .ok_or(ERR_INVALID_ARGUMENT),
             (0x2201, 0) => Ok(vec![1]),
             (0x2201, 1) => Ok(fx.dpi_list.clone()),
-            (0x2201, 2) => Ok(fx.dpi_current.clone()),
+            // getSensorDpi and getReportRate: what the loaded profile sets, as the mouse
+            // runs it, or the dump's own values before any profile was loaded.
+            (0x2201, 2) => Ok(match &state.loaded_sector {
+                Some(sector) => {
+                    let index = usize::from(sector[1]).min(4);
+                    let dpi = u16::from_le_bytes([sector[3 + index * 2], sector[4 + index * 2]]);
+                    let mut reply = fx.dpi_current.clone();
+                    reply[1..3].copy_from_slice(&dpi.to_be_bytes());
+                    reply
+                }
+                None => fx.dpi_current.clone(),
+            }),
             // setSensorDpi: a G502 X running its onboard profiles refuses it.
             (0x2201, 3) if state.mode == 1 => Err(ERR_INVALID_ARGUMENT),
             (0x8060, 0) => Ok(fx.rate_list.clone()),
-            (0x8060, 1) => Ok(fx.rate_current.clone()),
+            (0x8060, 1) => Ok(match &state.loaded_sector {
+                Some(sector) => {
+                    let mut reply = fx.rate_current.clone();
+                    reply[0] = sector[0];
+                    reply
+                }
+                None => fx.rate_current.clone(),
+            }),
             (0x8100, 0) => Ok(fx.description.clone()),
             (0x8100, 2) => Ok(vec![state.mode]),
             (0x8100, 3) => {
@@ -423,7 +444,9 @@ impl FakeG502x {
                     return Err(ERR_INVALID_ARGUMENT);
                 }
                 pending.data.truncate(pending.size);
-                if state.corrupt_next_write {
+                if state.corrupt_next_write
+                    || state.corrupt_write_number == Some(state.committed.len())
+                {
                     state.corrupt_next_write = false;
                     pending.data[0] ^= 0xFF;
                 }

@@ -13,7 +13,8 @@ Prepare a test plan that I run, one step at a time:
    "Omalogi Test"`.
 3. For each write: the --dry-run first, then the write, then how to confirm it on the
    mouse itself (for example the live DPI with `omalogi dpi`).
-4. If the change touches the overlay's saving, `scripts/hardware-selftest.py --profile N`.
+4. If the change touches the overlay's saving, `omalogi verify --profile N` with this
+   branch's build (`./target/release/omalogi`).
 5. How to restore everything: `omalogi restore <backup>` and turning the test profile off.
 
 Wait for my results after each step. If anything reads back differently than expected,

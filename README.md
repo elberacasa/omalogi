@@ -25,9 +25,10 @@ writes with one layout, so Omalogi can read and edit them. Nobody has checked th
 Omalogi yet, though. `omalogi check` reads every profile, writes nothing, and says whether
 Omalogi reads them as the mouse does: run it first. The first time you edit one, Omalogi
 asks you to accept that (`omalogi accept-untested`, or a button in the overlay). Every
-write is still backed up, read back and verified. Then please use **Help verify it** in
-the overlay: it opens a Mouse report for your model, where you can report how it went or
-claim the model and run the 15-minute self-test that makes it verified for everyone.
+write is still backed up, read back and verified. To make the model verified for
+everyone, run `omalogi verify` (or **Help verify it** in the overlay): a self-test of a
+few minutes on a spare profile slot, which puts every byte back and ends with a prefilled
+Mouse report to send.
 
 <details>
 <summary>Untested wired models</summary>
@@ -180,6 +181,7 @@ the udev rule and the systemd unit; then run `omalogi setup` as your user.
 ```sh
 omalogi info                       # device, firmware, DPI, report rate, mode
 omalogi check                      # check Omalogi reads this mouse right; writes nothing
+omalogi verify                     # self-test on a spare profile; puts everything back
 omalogi profiles                   # profiles, DPI stages, bindings
 omalogi profiles activate 2        # switch the active profile
 omalogi profiles enable 3          # turn a profile on (disable turns it off)

@@ -1,10 +1,22 @@
 # Prompt: verify my mouse
 
-For owners of a mouse Omalogi lists as untested. It takes about 15 minutes, runs only on
-a spare profile slot, restores everything at the end, and makes the model verified for
-everyone. You run every command; your agent explains and checks.
+For owners of a mouse Omalogi lists as untested. It takes a few minutes, runs only on a
+spare profile slot, restores everything at the end, and makes the model verified for
+everyone.
 
-The quickest start is one sentence to your coding agent:
+You do not need a checkout or an agent. With the helper installed:
+
+1. `omalogi check` reads every profile and writes nothing. Every check should pass.
+2. `omalogi verify` runs the self-test. It says what it will do and asks before it starts,
+   backs up all profile memory, runs on the first profile that is turned off, and puts
+   every byte back at the end.
+3. It ends with a link to the Mouse report form, prefilled with the model and the result.
+   Open it and send it. A maintainer then marks the model verified.
+
+The overlay's **Help verify it** runs the same self-test in a terminal.
+
+The rest of this guide is for a coding agent that also opens the pull request. The
+quickest start is one sentence to it:
 
 > Clone https://github.com/elberacasa/omalogi and follow docs/agents/verify-my-mouse.md
 > to verify my mouse.
@@ -47,25 +59,21 @@ Guide me one step at a time and wait for my output after each step:
 2. `omalogi check`: it reads every profile and writes nothing. Every check should pass.
    If one fails, stop here: help me post its output on the model's issue, and do not
    edit the mouse.
-3. `omalogi backup`: note where the backup was saved. Never ask me to share its contents.
-4. `omalogi profiles`: pick a profile slot that is turned off and not in use. Then
-   `omalogi accept-untested`, `omalogi profiles enable N` and
-   `omalogi profiles edit N --name "Omalogi Test"`.
-5. `scripts/hardware-selftest.py --profile N` from this checkout, and read me its summary.
-   It changes only that slot while it is not in use, and puts all profile memory back
-   byte for byte at the end.
-6. `omalogi profiles disable N` to turn the test profile off again.
-7. If anything failed or read back wrong: stop, help me run `omalogi restore <backup>`,
-   and help me post the self-test summary on the model's issue instead of opening a pull
-   request.
-8. If every check passed, open a pull request against the `next` branch that:
+3. `omalogi verify`, and read me its summary. It asks before it starts; I answer. It
+   backs up all profile memory, uses the first profile that is turned off (or
+   `--profile N` if every profile is on), writes only that profile and the profile
+   directory, and puts every byte back at the end, then prints a prefilled report link.
+4. If anything failed: profile memory was already put back from the backup it names.
+   Help me post its summary on the model's issue, or send the link it printed, instead
+   of opening a pull request.
+5. If every check passed, open a pull request against the `next` branch that:
    - sets `verified` for this exact model and connection in src/hidraw.rs
      (SUPPORTED_DEVICES for USB, WIRELESS_DEVICES for a receiver), and adds its profile
      layout to VERIFIED_LAYOUTS in src/onboard/format.rs if it is not there yet, citing
-     the self-test as the evidence;
+     `omalogi verify` as the evidence;
    - adds an entry to docs/hardware-tests.md with the date, model, USB id or WPID,
-     firmware, profile layout, the `omalogi check` result and the self-test summary
-     (no unit ID, no backups);
+     firmware, profile layout, the `omalogi check` result and the `omalogi verify`
+     summary (no unit ID, no backups);
    - moves the model to the verified list in the README;
    - says `Closes #<issue>` for the model's issue;
    - passes every check in docs/agents/agent-guide.md.

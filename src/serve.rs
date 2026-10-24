@@ -50,7 +50,8 @@ pub const SOFTWARE_ID: u8 = 0x0D;
 /// 2: `state` reports `support`, and `accept_untested` accepts editing an untested mouse.
 /// 3: errors carry a `kind`, and `repair_directory` rebuilds a damaged profile directory.
 /// 4: `live` answers the active profile and the sensor's DPI with two short requests.
-pub const PROTOCOL: u32 = 4;
+/// 5: the helper has `omalogi verify`, which the overlay runs for an untested mouse.
+pub const PROTOCOL: u32 = 5;
 
 /// Where to save a backup for a device name.
 pub type BackupPath = fn(&str) -> Result<PathBuf, Box<dyn Error>>;
@@ -204,9 +205,15 @@ impl Server {
         }
     }
 
+    /// The device session, once the server is done with it.
+    #[must_use]
+    pub fn into_session(self) -> Session {
+        self.session
+    }
+
     /// Answers requests until `input` ends.
     pub async fn run(
-        mut self,
+        &mut self,
         input: impl AsyncBufRead + Unpin,
         mut output: impl AsyncWrite + Unpin,
     ) -> io::Result<()> {

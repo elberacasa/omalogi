@@ -11,6 +11,7 @@ use omalogi::{
         format::{Binding, Profile},
         label,
     },
+    verify::VerifyReport,
 };
 
 // Writing to a String cannot fail, so `writeln!` results are ignored below.
@@ -118,6 +119,50 @@ pub fn check(report: &CheckReport) -> String {
                 format!("{failed} checks failed, {warned} with a warning. Nothing was written."),
         }
     );
+    out
+}
+
+pub fn verify(report: &VerifyReport) -> String {
+    let mut out = String::new();
+    let firmware = report
+        .active_firmware()
+        .map_or_else(String::new, |version| format!(", firmware {version}"));
+    let _ = writeln!(
+        out,
+        "\nSelf-test of the {} ({:04x}){firmware}, on profile {}:",
+        report.device, report.product_id, report.profile
+    );
+    let _ = writeln!(
+        out,
+        "{} checks passed, {} failed in {} s.",
+        report.passed,
+        report.failures.len(),
+        report.seconds
+    );
+    for note in &report.notes {
+        let _ = writeln!(out, "  note {note}");
+    }
+    for failure in &report.failures {
+        let _ = writeln!(out, "  FAIL {failure}");
+    }
+    for timing in &report.timings {
+        let _ = writeln!(
+            out,
+            "  {:<12} {:>4} requests  median {:>5} ms  max {:>5} ms",
+            timing.request, timing.count, timing.median_ms, timing.max_ms
+        );
+    }
+    let _ = writeln!(
+        out,
+        "Profile memory was backed up to {} first.",
+        report.backup.display()
+    );
+    if report.failures.is_empty() {
+        let _ = writeln!(
+            out,
+            "Every sector is as it was before the test. Nothing else was changed."
+        );
+    }
     out
 }
 
