@@ -31,6 +31,16 @@ All notable changes are listed here. The project follows
   Cards with their own fix (install the helper, allow access, plug in the mouse,
   repair the profile list) keep that one action.
 
+### Fixed
+
+- The G502 Lightspeed picture (depot `g502_wireless`, wireless product id 407f) draws a
+  line from each button to its dot. OpenLogi names those dots `g502wireless_g<N>_m1`,
+  and on this mouse g<N> is the name Logitech prints, so slot 4 is G5 and slot 5 is G6,
+  the opposite of the G502 X. The mouse stays untested: this checks the picture against
+  the factory bindings, not the hardware self-test.
+- Buttons with no dot on the picture wrap onto more rows instead of one, so they no
+  longer cover the default/G-Shift switch or the untested notice.
+
 ## [0.3.8] - 2026-10-23
 
 ### Added
