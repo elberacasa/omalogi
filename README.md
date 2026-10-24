@@ -25,9 +25,10 @@ mouse's profile memory before every write, and reads every write back to verify 
 Untested mice use the same onboard memory family as the G502 X, which libratbag reads and
 writes with one layout, so Omalogi can read and edit them. Nobody has checked them with
 Omalogi yet, though. `omalogi check` reads every profile, writes nothing, and says whether
-Omalogi reads them as the mouse does: run it first. The first time you edit one, Omalogi
-asks you to accept that (`omalogi accept-untested`, or a button in the overlay). Every
-write is still backed up, read back and verified. To make the model verified for
+Omalogi reads them as the mouse does. The first time you edit one, Omalogi asks you to
+accept that (`omalogi accept-untested`, or a button in the overlay), and runs the check
+first: a mouse that fails it is not edited. Every write is still backed up, read back and
+verified. To make the model verified for
 everyone, run `omalogi verify` (or **Help verify it** in the overlay): a self-test of a
 few minutes on a spare profile slot, which puts every byte back and ends with a prefilled
 Mouse report to send.

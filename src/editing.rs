@@ -132,6 +132,15 @@ pub enum EditError {
          accept it in the overlay to edit it (every write is still backed up and verified)"
     )]
     NotAccepted { name: &'static str },
+    #[error(
+        "Omalogi reads the {name}'s profile memory differently from the mouse, so editing it \
+         is not safe: {findings}. `omalogi check` shows the full report; please post it in a \
+         Mouse report: https://github.com/elberacasa/omalogi/issues/new?template=mouse.yml"
+    )]
+    CheckFailed {
+        name: &'static str,
+        findings: String,
+    },
     #[error("could not record the acceptance in {path}")]
     SaveConsent {
         path: String,

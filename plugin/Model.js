@@ -137,6 +137,54 @@ function needsAcceptance(support) {
   return !!support && !support.verified && !!support.editable && !support.accepted
 }
 
+// Whether the helper runs `omalogi check` for the accept dialog (protocol 6). Older
+// helpers accept an untested mouse without it.
+function canCheck(state) {
+  var protocol = state && state.helper && state.helper.protocol ? state.helper.protocol : 1
+  return protocol >= 6
+}
+
+// One check finding as the helper prints it in errors: "profile 2 checksum: …".
+function findingText(finding) {
+  var where = finding.profile ? "profile " + finding.profile + " " : ""
+  return where + finding.check + ": " + finding.detail
+}
+
+// What the accept dialog says about a `check` report: {outcome, text, problem}. As in the
+// helper, a failed profile directory does not count against the mouse: repairing it is an
+// edit, which needs the acceptance. `problem` holds the failures, for a problem report.
+function checkSummary(report) {
+  if (!report) return null
+  var findings = report.findings || []
+  var failed = findings.filter(function(f) { return f.outcome === "fail" && f.check !== "directory" })
+  if (failed.length > 0) {
+    var more = failed.length > 1 ? " (and " + (failed.length - 1) + " more)" : ""
+    return {
+      outcome: "fail",
+      text: "Omalogi reads this mouse's memory differently from the mouse, so it will not edit it: "
+        + findingText(failed[0]) + more,
+      problem: "omalogi check failed on the " + report.device + ":\n" + failed.map(findingText).join("\n")
+    }
+  }
+  var profiles = {}
+  var count = 0
+  findings.forEach(function(f) {
+    if (f.profile && !profiles[f.profile]) {
+      profiles[f.profile] = true
+      count++
+    }
+  })
+  var notes = findings.filter(function(f) { return f.outcome !== "pass" }).length
+  var read = count === 0 ? "Checked: nothing Omalogi read differs from the mouse"
+    : "Checked: Omalogi reads " + (count === 1 ? "its profile" : "all " + count + " profiles") + " the way the mouse does"
+  return {
+    outcome: notes > 0 ? "warn" : "pass",
+    text: read
+      + (notes > 0 ? " (" + notes + (notes === 1 ? " note" : " notes") + " in omalogi check)." : "."),
+    problem: ""
+  }
+}
+
 function hex4(value) {
   return ("0000" + Number(value || 0).toString(16)).slice(-4)
 }

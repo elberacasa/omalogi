@@ -109,8 +109,9 @@ enum DeviceCommand {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
-    /// Accept editing a mouse Omalogi has not been tested on yet. Every write is still
-    /// backed up and verified; please report how it went.
+    /// Accept editing a mouse Omalogi has not been tested on yet. It first runs the
+    /// read-only `check` and refuses a mouse that fails it. Every write is still backed up
+    /// and verified; please report how it went.
     AcceptUntested,
     /// Show the sensor's live DPI, or set it without saving it to any profile.
     Dpi {

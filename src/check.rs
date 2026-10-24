@@ -8,6 +8,8 @@
 //! encodes back to, and the DPI and report rate the mouse reports for itself. Nothing is
 //! written, so it is safe on a mouse nobody has verified yet.
 
+use std::fmt;
+
 use serde::Serialize;
 
 use crate::{
@@ -43,6 +45,15 @@ pub struct Finding {
     pub detail: String,
 }
 
+impl fmt::Display for Finding {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.profile {
+            Some(number) => write!(f, "profile {number} {}: {}", self.check, self.detail),
+            None => write!(f, "{}: {}", self.check, self.detail),
+        }
+    }
+}
+
 /// The result of `omalogi check`. It holds no unit ID and no profile memory, so it can be
 /// posted in an issue as it is.
 #[derive(Debug, Clone, Serialize)]
@@ -74,6 +85,17 @@ impl Findings {
             outcome,
             detail: detail.into(),
         });
+    }
+}
+
+impl CheckReport {
+    /// The failures that make editing unsafe: every one but the profile directory's. A
+    /// damaged directory is rebuilt by `profiles repair`, which is itself an edit, so it
+    /// must not stand in the way of accepting the mouse.
+    pub fn misreads(&self) -> impl Iterator<Item = &Finding> {
+        self.findings
+            .iter()
+            .filter(|finding| finding.outcome == Outcome::Fail && finding.check != "directory")
     }
 }
 

@@ -180,3 +180,65 @@ async fn a_layout_omalogi_cannot_read_is_not_editable() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn accepting_checks_first_and_refuses_a_mouse_that_fails() {
+    let dir = temp("check");
+    let path = dir.join("untested.json");
+    let device = FakeG502x::new().with_product_id(0xC07D);
+    let state = device.state();
+    state
+        .lock()
+        .expect("state")
+        .sectors
+        .get_mut(&2)
+        .expect("sector 2")[10] ^= 0xFF;
+    let mut session = connect(device, 0xC07D, Some(path.clone())).await;
+
+    let refused = session.accept_untested().await;
+    let Err(EditError::CheckFailed { name, findings }) = &refused else {
+        panic!("refused for the check: {refused:?}");
+    };
+    assert_eq!(*name, "G502 Proteus Core");
+    assert!(
+        findings.starts_with("profile 2 checksum: sector 0002 fails its checksum"),
+        "{findings}"
+    );
+    assert!(!session.support().await.expect("support").accepted);
+    assert!(!path.exists(), "nothing was recorded");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn a_mouse_with_no_profile_directory_can_still_be_accepted() {
+    // Its first write sets up the directory, so the check's warning must not block it.
+    let dir = temp("blank");
+    let mut session = connect(
+        FakeG502x::new()
+            .with_product_id(0xC07D)
+            .with_blank_user_memory(),
+        0xC07D,
+        Some(dir.join("untested.json")),
+    )
+    .await;
+    assert!(session.accept_untested().await.expect("accepted").accepted);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn a_damaged_profile_directory_does_not_block_accepting_its_repair() {
+    // `profiles repair` is an edit too, so a directory that fails its checksum must not
+    // keep the mouse from being accepted.
+    let dir = temp("damaged");
+    let device = FakeG502x::new().with_product_id(0xC07D);
+    {
+        let state = device.state();
+        let mut state = state.lock().expect("state");
+        let directory = state.sectors.get_mut(&0).expect("sector 0");
+        let crc_at = directory.len() - 2;
+        directory[crc_at..].copy_from_slice(&[0xFF, 0xFF]);
+    }
+    let mut session = connect(device, 0xC07D, Some(dir.join("untested.json"))).await;
+    assert!(session.accept_untested().await.expect("accepted").accepted);
+    let _ = std::fs::remove_dir_all(&dir);
+}

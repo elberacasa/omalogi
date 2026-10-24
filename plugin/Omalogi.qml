@@ -42,6 +42,13 @@ Item {
   // Whether the badge runs the self-test (Model.canSelfTest).
   property bool selfTest: false
   property bool acceptOpen: false
+  // The read-only check the accept dialog runs first (Model.canCheck): the helper's
+  // report, or why it could not run.
+  property bool canCheck: false
+  property bool checking: false
+  property var checkReport: null
+  property string checkError: ""
+  readonly property var checkSummary: Model.checkSummary(root.checkReport)
   property bool uninstallOpen: false
   readonly property var supportBadge: Model.supportBadge(root.support, root.selfTest)
   // What stands between the plugin and the mouse (see Model.setupState), or "".
@@ -192,6 +199,12 @@ Item {
       root.helper = result.helper || null
       root.support = Model.support(result)
       root.selfTest = Model.canSelfTest(result, root.support)
+      root.canCheck = Model.canCheck(result)
+      // A report is about one mouse; another one is checked afresh.
+      if (root.info === null || !result.info || root.info.product_id !== result.info.product_id) {
+        root.checkReport = null
+        root.checkError = ""
+      }
       root.info = result.info
       root.onboard = result.onboard
       if (first) root.cursor = Model.initialCursor(result.onboard)
@@ -278,7 +291,7 @@ Item {
     }
     // An untested mouse is written only after the user accepts it, once.
     if (Model.needsAcceptance(root.support)) {
-      root.acceptOpen = true
+      root.openAccept()
       return false
     }
     if (root.saving || root.undoing) {
@@ -466,7 +479,23 @@ Item {
     root.close()
   }
 
+  // Asks to accept editing this untested mouse, and checks with reads only, while the
+  // user reads the dialog, that Omalogi reads its memory the way the mouse does.
+  function openAccept() {
+    root.acceptOpen = true
+    if (!root.canCheck || root.checking || root.checkReport !== null) return
+    root.checking = true
+    root.checkError = ""
+    server.request({ cmd: "check" }, function(ok, result) {
+      root.checking = false
+      if (ok) root.checkReport = result
+      else root.checkError = result
+      root.stopServerWhenIdle()
+    })
+  }
+
   // Accepts editing this untested mouse, then saves the changes that were waiting.
+  // The helper checks again and refuses a mouse that fails, whatever the dialog showed.
   function acceptUntested() {
     root.acceptOpen = false
     server.request({ cmd: "accept_untested" }, function(ok, result) {
@@ -970,15 +999,40 @@ Item {
                 text: "Omalogi has not been tested on this model yet. It uses the same onboard memory as the verified G502 X, and every change is backed up first and read back to check it. You only need to accept this once."
               }
 
+              // What the read-only check found, from helpers that run it.
+              Label {
+                width: parent.width
+                visible: root.canCheck
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                color: root.checkSummary && root.checkSummary.outcome === "fail"
+                  ? Commons.Color.urgent : Commons.Color.menu.text
+                opacity: root.checkSummary && root.checkSummary.outcome === "fail" ? 1 : 0.75
+                text: root.checking ? "Checking that Omalogi reads its memory the way the mouse does…"
+                  : root.checkSummary ? root.checkSummary.text
+                  : root.checkError !== "" ? "The check could not run: " + root.checkError
+                  : ""
+              }
+
               Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: Style.spacing.md
 
                 Button {
+                  visible: !root.checkSummary || root.checkSummary.outcome !== "fail"
+                  enabled: !root.checking
                   text: "Edit it"
                   bordered: true
                   foreground: Commons.Color.accent
                   onClicked: root.acceptUntested()
+                }
+
+                Button {
+                  visible: root.checkSummary !== null && root.checkSummary.outcome === "fail"
+                  text: "Report a problem"
+                  bordered: true
+                  foreground: Commons.Color.accent
+                  onClicked: root.reportProblem(root.checkSummary.problem)
                 }
 
                 Button {
@@ -993,6 +1047,7 @@ Item {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
+                visible: !root.checkSummary || root.checkSummary.outcome !== "fail"
                 opacity: 0.5
                 text: "After trying it, please tell us how it went with the Untested badge at the top."
                 font.pixelSize: Style.font.caption
