@@ -18,7 +18,7 @@
 //!
 //! An error the overlay can act on also names its `kind`: `directory_checksum` when the
 //! profile directory fails its checksum or was never written, which `repair_directory`
-//! fixes.
+//! fixes, and `check_failed` when `accept_untested` refuses a mouse that fails the check.
 //!
 //! The device lock is held for each request, never while idle, so the daemon and CLI
 //! commands take turns with the server. Writes keep the CLI's guarantees: all profile
@@ -51,7 +51,8 @@ pub const SOFTWARE_ID: u8 = 0x0D;
 /// 3: errors carry a `kind`, and `repair_directory` rebuilds a damaged profile directory.
 /// 4: `live` answers the active profile and the sensor's DPI with two short requests.
 /// 5: the helper has `omalogi verify`, which the overlay runs for an untested mouse.
-pub const PROTOCOL: u32 = 5;
+/// 6: `check` runs `omalogi check`, and `accept_untested` refuses a mouse that fails it.
+pub const PROTOCOL: u32 = 6;
 
 /// Where to save a backup for a device name.
 pub type BackupPath = fn(&str) -> Result<PathBuf, Box<dyn Error>>;
@@ -85,7 +86,10 @@ enum Command {
         profile: usize,
         enabled: bool,
     },
-    /// Accepts editing an untested mouse from now on; answers with its support.
+    /// `omalogi check`'s read-only report on how Omalogi reads the mouse.
+    Check,
+    /// Accepts editing an untested mouse from now on, unless it fails the check; answers
+    /// with its support.
     AcceptUntested,
     /// Rebuilds a profile directory whose checksum does not match; answers with every
     /// profile.
@@ -124,6 +128,12 @@ impl Failure {
                 Some(SessionError::InvalidDirectoryChecksum | SessionError::DirectoryNeverWritten)
             ) {
                 kind = Some("directory_checksum");
+            }
+            if matches!(
+                error.downcast_ref::<EditError>(),
+                Some(EditError::CheckFailed { .. })
+            ) {
+                kind = Some("check_failed");
             }
             source = error.source();
         }
@@ -303,6 +313,10 @@ impl Server {
                 .set_enabled(profile, enabled)
                 .await
                 .map_err(|e| Failure::new(e.as_ref())),
+            Command::Check => {
+                let report = self.session.check().await.map_err(|e| Failure::new(&e))?;
+                serde_json::to_value(report).map_err(|e| Failure::new(&e))
+            }
             Command::AcceptUntested => {
                 let support = self
                     .session

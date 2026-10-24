@@ -305,3 +305,79 @@ async fn a_directory_that_was_never_written_is_set_up_through_the_overlay() {
     served.expect("server ends cleanly");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn an_untested_mouse_that_fails_the_check_is_not_accepted() {
+    let dir = test_dir("check");
+    let _ = std::fs::remove_dir_all(&dir);
+    let device = FakeG502x::new().with_product_id(0xC07D);
+    device
+        .state()
+        .lock()
+        .expect("state")
+        .sectors
+        .get_mut(&2)
+        .expect("sector 2")[10] ^= 0xFF;
+    let model = *SUPPORTED_DEVICES
+        .iter()
+        .find(|device| device.product_id == 0xC07D)
+        .expect("a known model");
+    let mut session = Session::connect(device, model, "emulated".to_owned(), serve::SOFTWARE_ID)
+        .await
+        .expect("session starts");
+    session.set_consent_path(Some(dir.join("untested.json")));
+    let mut server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+        backup_in("check")
+    });
+
+    let (client, server_side) = tokio::io::duplex(1 << 20);
+    let (server_read, server_write) = tokio::io::split(server_side);
+    let (client_read, mut client_write) = tokio::io::split(client);
+
+    let script = async {
+        let mut responses = BufReader::new(client_read).lines();
+        let mut ask = async |request: Value| -> Value {
+            let line = format!("{request}\n");
+            client_write.write_all(line.as_bytes()).await.expect("send");
+            let reply = responses.next_line().await.expect("read").expect("a reply");
+            serde_json::from_str(&reply).expect("JSON reply")
+        };
+
+        let reply = ask(json!({ "id": 1, "cmd": "check" })).await;
+        assert_eq!(reply["ok"], true, "{reply}");
+        assert_eq!(reply["result"]["outcome"], "fail");
+        assert_eq!(reply["result"]["device"], "G502 Proteus Core");
+        let failed: Vec<&Value> = reply["result"]["findings"]
+            .as_array()
+            .expect("findings")
+            .iter()
+            .filter(|finding| finding["outcome"] == "fail")
+            .collect();
+        assert_eq!(failed.len(), 1, "{reply}");
+        assert_eq!(failed[0]["check"], "checksum");
+        assert_eq!(failed[0]["profile"], 2);
+
+        let reply = ask(json!({ "id": 2, "cmd": "accept_untested" })).await;
+        assert_eq!(reply["ok"], false, "{reply}");
+        assert_eq!(reply["kind"], "check_failed");
+        assert!(
+            reply["error"]
+                .as_str()
+                .is_some_and(|error| error.contains("profile 2 checksum")),
+            "{reply}"
+        );
+
+        let reply = ask(json!({ "id": 3, "cmd": "state" })).await;
+        assert_eq!(reply["result"]["support"]["accepted"], false, "{reply}");
+
+        drop(client_write);
+    };
+
+    let (served, ()) = tokio::join!(
+        server.run(BufReader::new(server_read), server_write),
+        script
+    );
+    served.expect("server ends cleanly");
+    assert!(!dir.join("untested.json").exists(), "nothing was recorded");
+    let _ = std::fs::remove_dir_all(&dir);
+}

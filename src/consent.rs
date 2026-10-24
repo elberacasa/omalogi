@@ -1,9 +1,10 @@
 //! Consent to edit a mouse Omalogi has not been verified on.
 //!
-//! Only the wired G502 X, with profile layout (1, 4), has been verified on real hardware.
-//! Other Logitech mice whose onboard memory Omalogi can read are edited only after the
-//! user accepts, once per model and layout. Every write is still backed up, read back and
-//! verified. Acceptances are kept in `$XDG_STATE_HOME/omalogi/untested.json`.
+//! A mouse whose model or profile layout has not been verified on real hardware is edited
+//! only after the user accepts, once per model and layout, and only once `omalogi check`
+//! finds that Omalogi reads its profile memory the way the mouse does. Every write is still
+//! backed up, read back and verified. Acceptances are kept in
+//! `$XDG_STATE_HOME/omalogi/untested.json`.
 
 use std::{
     env, fs, io,
@@ -12,7 +13,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{device::Session, editing::EditError, onboard::format::Description};
+use crate::{
+    check::CheckReport, device::Session, editing::EditError, onboard::format::Description,
+};
 
 /// A mouse model and profile layout, as accepted for editing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,11 +116,34 @@ impl Session {
         })
     }
 
-    /// Accepts editing this untested mouse from now on. A verified mouse needs nothing.
+    /// Accepts editing this untested mouse from now on, after checking with reads only that
+    /// Omalogi reads its profile memory the way the mouse does. A verified mouse needs
+    /// nothing.
     pub async fn accept_untested(&mut self) -> Result<Support, EditError> {
         let support = self.support().await?;
         if support.accepted {
             return Ok(support);
+        }
+        let report = self.check().await?;
+        self.accept_checked(&report).await
+    }
+
+    /// [`Self::accept_untested`] with a check this session has just run, so its reads are
+    /// not repeated. Nothing may have been written since.
+    pub(crate) async fn accept_checked(
+        &mut self,
+        report: &CheckReport,
+    ) -> Result<Support, EditError> {
+        let support = self.support().await?;
+        if support.accepted {
+            return Ok(support);
+        }
+        let misreads: Vec<String> = report.misreads().map(ToString::to_string).collect();
+        if !misreads.is_empty() {
+            return Err(EditError::CheckFailed {
+                name: support.name,
+                findings: misreads.join("; "),
+            });
         }
         let path = self
             .consent_path()

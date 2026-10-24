@@ -796,3 +796,47 @@ test("a problem report is prefilled without the unit ID or the device path", () 
   assert.equal(JSON.parse(bare.get("info")).helper, "unknown", "a helper that never answered")
   assert.ok(bare.get("what").length < 1700, "a long error is cut to fit a link")
 })
+
+test("checkSummary says what the read check found before accepting", () => {
+  const helper = protocol => ({ helper: { version: "0.3.9", protocol } })
+  assert.equal(Model.canCheck(helper(6)), true)
+  assert.equal(Model.canCheck(helper(5)), false, "helpers before protocol 6 have no check request")
+  assert.equal(Model.canCheck(null), false)
+  assert.equal(Model.checkSummary(null), null)
+
+  const finding = (check, profile, outcome, detail) => ({ check, profile, outcome, detail: detail || check + " ok" })
+  const passing = [finding("layout", undefined, "pass"), finding("directory", undefined, "pass")]
+  for (const profile of [1, 2, 3]) {
+    passing.push(finding("checksum", profile, "pass"), finding("round_trip", profile, "pass"))
+  }
+  const report = findings => ({ device: "G502 Proteus Core", outcome: "pass", findings })
+
+  const pass = Model.checkSummary(report(passing))
+  assert.equal(pass.outcome, "pass")
+  assert.equal(pass.text, "Checked: Omalogi reads all 3 profiles the way the mouse does.")
+  assert.equal(pass.problem, "")
+
+  const warn = Model.checkSummary(report([...passing, finding("live_dpi", 1, "warn")]))
+  assert.equal(warn.outcome, "warn")
+  assert.match(warn.text, /all 3 profiles .*\(1 note in omalogi check\)\.$/)
+
+  const failed = Model.checkSummary(report([
+    ...passing,
+    finding("checksum", 2, "fail", "sector 0002 fails its checksum"),
+    finding("round_trip", 3, "fail", "the name does not encode back")
+  ]))
+  assert.equal(failed.outcome, "fail")
+  assert.match(failed.text, /will not edit it: profile 2 checksum: sector 0002 fails its checksum \(and 1 more\)$/)
+  assert.equal(failed.problem,
+    "omalogi check failed on the G502 Proteus Core:\n"
+    + "profile 2 checksum: sector 0002 fails its checksum\n"
+    + "profile 3 round_trip: the name does not encode back")
+
+  // As in the helper, a damaged directory is repaired after accepting, so it is a note.
+  const directory = Model.checkSummary(report([
+    finding("layout", undefined, "pass"),
+    finding("directory", undefined, "fail", "the profile directory fails its checksum")
+  ]))
+  assert.equal(directory.outcome, "warn")
+  assert.equal(directory.text, "Checked: nothing Omalogi read differs from the mouse (1 note in omalogi check).")
+})

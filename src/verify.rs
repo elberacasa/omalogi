@@ -243,7 +243,7 @@ pub async fn verify(
 
     let mut tally = Tally::default();
     if !support.accepted {
-        session.accept_untested().await?;
+        session.accept_checked(&check).await?;
         tally.note("accepted editing this untested model, as running the test asks");
         support.accepted = true;
     }

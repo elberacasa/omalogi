@@ -35,6 +35,18 @@ All notable changes are listed here. The project follows
   layout (1, 3) was already verified with the G502 X Lightspeed, so it needs no
   acceptance before a write (#88).
 
+### Changed
+
+- Accepting an untested mouse runs `omalogi check` first, with reads only, and refuses a
+  mouse that fails it: Omalogi then reads its profile memory differently from the mouse,
+  and an edit could land in the wrong place. The error lists the failed checks. A damaged
+  or missing profile directory does not count, since repairing it needs the acceptance.
+  This holds for `omalogi accept-untested`, the overlay and `omalogi verify`.
+- The overlay's accept dialog shows what the check found while you decide. When the check
+  fails, **Edit it** gives way to **Report a problem**, prefilled with the failed checks.
+  `omalogi serve` speaks protocol 6, with a `check` request and the `check_failed` error
+  kind; older helpers keep the old dialog.
+
 ### Fixed
 
 - `omalogi accept-untested` linked to an issue form that no longer exists. It now links
