@@ -35,6 +35,11 @@ All notable changes are listed here. The project follows
   layout (1, 3) was already verified with the G502 X Lightspeed, so it needs no
   acceptance before a write (#88).
 
+### Fixed
+
+- `omalogi accept-untested` linked to an issue form that no longer exists. It now links
+  to the Mouse report form and points to `omalogi verify`.
+
 ## [0.3.8] - 2026-10-23
 
 ### Added
