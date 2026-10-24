@@ -95,8 +95,9 @@ function support(state) {
   return { name: "G502 X", verified: true, editable: true, accepted: true }
 }
 
-// The header badge for a mouse that is not verified, or null.
-function supportBadge(support) {
+// The header badge for a mouse that is not verified, or null. With `selfTest`, its action
+// runs the self-test instead of opening the report form.
+function supportBadge(support, selfTest) {
   if (!support || support.verified) return null
   if (!support.editable) {
     return {
@@ -108,8 +109,22 @@ function supportBadge(support) {
   return {
     text: "Untested",
     action: "Help verify it",
-    detail: "Omalogi has not been tested on the " + support.name + " yet. Every change is backed up and verified."
+    detail: "Omalogi has not been tested on the " + support.name + " yet. Every change is backed up and verified." +
+      (selfTest ? " Help verify it runs the self-test in a terminal, on a spare profile, and puts everything back." : "")
   }
+}
+
+// Whether the badge runs the self-test: an untested mouse Omalogi can edit, and a helper
+// with `omalogi verify` (protocol 5). Older helpers open the report form instead.
+function canSelfTest(state, support) {
+  var protocol = state && state.helper && state.helper.protocol ? state.helper.protocol : 1
+  return !!support && !support.verified && !!support.editable && protocol >= 5
+}
+
+// The self-test in Omarchy's floating terminal, where it asks before it starts and shows
+// its progress. It ends by offering the prefilled report.
+function selfTestArgv() {
+  return ["omarchy-launch-floating-terminal-with-presentation", "omalogi verify"]
 }
 
 // Whether saving must first ask the user to accept editing an untested mouse.

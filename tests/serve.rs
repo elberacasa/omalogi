@@ -38,7 +38,7 @@ async fn edits_undo_and_activation_over_json_lines() {
     )
     .await
     .expect("session starts");
-    let server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+    let mut server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
         backup_in("edits")
     });
 
@@ -179,7 +179,7 @@ async fn a_damaged_directory_is_reported_and_repaired() {
     )
     .await
     .expect("session starts");
-    let server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+    let mut server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
         backup_in("repair")
     });
 
@@ -254,7 +254,7 @@ async fn a_directory_that_was_never_written_is_set_up_through_the_overlay() {
     )
     .await
     .expect("session starts");
-    let server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
+    let mut server = serve::Server::new(session, Some(dir.join("device.lock")), |_| {
         backup_in("first")
     });
 

@@ -27,7 +27,7 @@ speaks HID++ 2.0 to the mouse. Ready-made task prompts are in
 | `src/setup.rs` | `omalogi setup`; `PLUGIN_FILES` must list every file in `plugin/` |
 | `src/daemon.rs`, `src/rules.rs`, `src/hyprland.rs` | Per-app and per-monitor switching |
 | `tests/` | End-to-end tests against an emulated G502 X (`tests/support`) |
-| `scripts/hardware-selftest.py` | The manual hardware matrix, run on a dedicated test profile |
+| `src/check.rs`, `src/verify.rs` | `omalogi check` (read only) and `omalogi verify`, the hardware self-test |
 | `docs/hardware-tests.md` | Everything verified on real hardware, and how |
 
 ## Checks

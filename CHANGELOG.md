@@ -15,6 +15,23 @@ All notable changes are listed here. The project follows
   that the profile in use matches the DPI and rate the mouse runs at. It exits with
   status 1 when a check fails, and its report (`--json` too) holds no unit ID or profile
   memory, so it can be posted in an issue. Verifying a mouse starts with it.
+- `omalogi verify` runs the hardware self-test from the helper: no checkout, no Python,
+  no agent. It drives the overlay's own `serve` requests in process against the mouse:
+  every action on every button of both layers, the refusals, DPI stages and report
+  rates, names, undo, and live reloads while the profile is in use. It runs `omalogi
+  check` first and writes nothing if that fails, asks before it starts, picks the first
+  profile that is turned off (or `--profile N`), holds the device lock for the whole run
+  so the daemon cannot switch profiles, and checks that no other sector changed before
+  putting every byte back from its backup. It ends with a link to the Mouse report form,
+  prefilled with the model, its id, firmware and result. The whole test also runs
+  against the emulated G502 X in CI.
+- The overlay's **Help verify it** runs `omalogi verify` in Omarchy's floating terminal
+  when the helper has it (`omalogi serve` protocol 5), and opens the report form with
+  older helpers.
+
+### Removed
+
+- `scripts/hardware-selftest.py`, replaced by `omalogi verify`.
 
 ## [0.3.7] - 2026-10-23
 

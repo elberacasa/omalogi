@@ -37,9 +37,11 @@ Item {
   // How far the connected mouse is verified (Model.support); untested mice ask once
   // before the first save.
   property var support: null
+  // Whether the badge runs the self-test (Model.canSelfTest).
+  property bool selfTest: false
   property bool acceptOpen: false
   property bool uninstallOpen: false
-  readonly property var supportBadge: Model.supportBadge(root.support)
+  readonly property var supportBadge: Model.supportBadge(root.support, root.selfTest)
   // What stands between the plugin and the mouse (see Model.setupState), or "".
   // A shell running an older copy of this overlay comes first: nothing else can be
   // trusted to behave as this version does.
@@ -186,6 +188,7 @@ Item {
       var first = root.onboard === null
       root.helperOutdated = Model.helperOutdated(result)
       root.support = Model.support(result)
+      root.selfTest = Model.canSelfTest(result, root.support)
       root.info = result.info
       root.onboard = result.onboard
       if (first) root.cursor = Model.initialCursor(result.onboard)
@@ -476,6 +479,21 @@ Item {
   // Opens the new-device issue form, prefilled with the model and USB id.
   function reportDevice() {
     Qt.openUrlExternally(Model.reportUrl(root.info, root.support))
+  }
+
+  // The badge's action: the self-test when the helper has it, else the report form.
+  function helpVerify() {
+    if (root.selfTest) root.runSelfTest()
+    else root.reportDevice()
+  }
+
+  // Runs the self-test in Omarchy's floating terminal. The overlay lets go of the mouse
+  // first, since the test holds it for its whole run, and closes: the terminal would open
+  // behind it. Opening Omalogi again reads the mouse afresh.
+  function runSelfTest() {
+    server.stop()
+    Util.execArgv(Model.selfTestArgv())
+    root.close()
   }
 
   function daemonUpdated(state) {
@@ -842,7 +860,7 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.reportDevice()
+                onClicked: root.helpVerify()
                 onContainsMouseChanged: if (containsMouse && root.supportBadge) root.say(root.supportBadge.detail, false)
               }
             }

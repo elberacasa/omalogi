@@ -5,7 +5,7 @@ const Issues = require("./mouse-issues.js")
 const form = (fields) => Object.entries(fields).map(([question, answer]) => `### ${question}\n\n${answer}`).join("\n\n")
 
 const report = form({
-  "What would you like to do?": "Verify it (I will run the 15-minute self-test)",
+  "What would you like to do?": "Verify it (I will run the self-test, `omalogi verify`)",
   "Mouse model": "Logitech G305",
   "USB id or wireless id": "046d:4074",
   "Connection": "Through a receiver (LIGHTSPEED, Bolt or Unifying)",
