@@ -3,6 +3,7 @@
 use std::fmt::Write;
 
 use omalogi::{
+    check::{CheckReport, Outcome},
     device::{Info, OnboardState, ProfileSlot},
     editing::{DirectoryRepair, EditPlan, RestorePlan, RestoreReport, TakesEffect, WriteReport},
     onboard::{
@@ -52,6 +53,80 @@ pub fn info(info: &Info) -> String {
     );
     let _ = writeln!(out, "Mode         {}", mode(info.onboard_mode));
     out
+}
+
+pub fn check(report: &CheckReport) -> String {
+    let mut out = String::new();
+    let firmware = report
+        .firmware
+        .iter()
+        .find(|fw| fw.active)
+        .map_or_else(String::new, |fw| format!(", firmware {}", fw.version));
+    let _ = writeln!(
+        out,
+        "{} ({:04x}){firmware}, {}",
+        report.device,
+        report.product_id,
+        if report.support.verified {
+            "verified on real hardware"
+        } else {
+            "not verified yet"
+        }
+    );
+    let _ = writeln!(out, "Mode: {}", mode(report.mode));
+    let mut profile = None;
+    for finding in &report.findings {
+        if finding.profile != profile {
+            profile = finding.profile;
+            if let Some(number) = profile {
+                let _ = writeln!(out, "Profile {number}");
+            }
+        }
+        // Profile findings are indented; the details line up either way.
+        let (indent, width) = if finding.profile.is_some() {
+            ("  ", 17)
+        } else {
+            ("", 19)
+        };
+        let _ = writeln!(
+            out,
+            "{indent}{:<5} {:<width$} {}",
+            outcome(finding.outcome),
+            finding.check,
+            finding.detail
+        );
+    }
+    let count = |wanted| {
+        report
+            .findings
+            .iter()
+            .filter(|finding| finding.outcome == wanted)
+            .count()
+    };
+    let (warned, failed) = (count(Outcome::Warn), count(Outcome::Fail));
+    let _ = writeln!(
+        out,
+        "{}",
+        match (failed, warned) {
+            (0, 0) => format!(
+                "All {} checks passed. Nothing was written.",
+                report.findings.len()
+            ),
+            (0, warned) =>
+                format!("No check failed, {warned} with a warning. Nothing was written."),
+            (failed, _) =>
+                format!("{failed} checks failed, {warned} with a warning. Nothing was written."),
+        }
+    );
+    out
+}
+
+fn outcome(outcome: Outcome) -> &'static str {
+    match outcome {
+        Outcome::Pass => "pass",
+        Outcome::Warn => "warn",
+        Outcome::Fail => "FAIL",
+    }
 }
 
 pub fn profiles(state: &OnboardState) -> String {

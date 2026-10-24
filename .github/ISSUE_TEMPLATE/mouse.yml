@@ -53,7 +53,7 @@ body:
     id: results
     attributes:
       label: How did it go?
-      description: What worked, what did not, and any error messages. For a verification, the self-test summary goes here or in the pull request.
+      description: What worked, what did not, and any error messages. Please paste the output of `omalogi check`, which reads the mouse and writes nothing. For a verification, the self-test summary goes here or in the pull request.
       placeholder: |
         Reading profiles: …
         Changing DPI levels: …
