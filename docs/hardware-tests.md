@@ -488,6 +488,42 @@ with the mouse's buttons before the run is not kept. The prompt says so.
 
 Result: **pass**.
 
+## 2026-10-24: G502 Lightspeed mouse picture and button positions
+
+Device: Logitech G502 Lightspeed, through its LIGHTSPEED receiver, WPID 407f, firmware
+BOT 92.00.B0008 and active MPM 17.00.B0008. Read only: `omalogi profiles --json` for the
+factory bindings, and the cached OpenLogi render for depot `g502_wireless` (model id
+407f only; wired c08d has no picture in the index). Nothing was written. `omalogi verify`
+was not run, and the model stays untested in the device table.
+
+The render prints G4, G5, G7, G8 and G9 on the buttons. Logitech's quick-start guide
+(logitech.com/assets/65648/2/g502-lightspeed.pdf) names the same buttons: G1 left, G2
+right, G3 middle, G4 back, G5 forward, G6 the sniper button, G7 DPI down, G8 DPI up, G9
+battery status. It describes the wheel tilts as scroll left and scroll right and does
+not print a G-number on them. The metadata marks those tilts `g10` (right of the wheel)
+and `g11` (left of the wheel), so the overlay calls them G10 and G11, continuing the
+printed numbers. The ids omit the depot's underscore: `g502wireless_g<N>_m1`.
+
+Compared with the first factory profile's binding for slot N−1:
+
+| Id | Position on the render | Logitech's name | Slot N−1 factory binding |
+|---|---|---|---|
+| g1, g2, g3 | left button, right button, wheel | G1, G2, G3 | left, right, middle |
+| g4 | rear thumb button, printed G4 | G4 | back |
+| g5 | middle thumb button, printed G5 | G5 | forward |
+| g6 | sniper button, ahead of G5 | G6 | DPI shift |
+| g7 | lower left-edge button, printed G7 | G7 | DPI down |
+| g8 | upper left-edge button, printed G8 | G8 | DPI up |
+| g9 | button below the wheel, printed G9 | G9 | no action text |
+| g10 | wheel tilt, right side | G10 | scroll right |
+| g11 | wheel tilt, left side | G11 | scroll left |
+
+All 11 agree, so the overlay maps g*N* to slot N−1 for this depot too. Slot 8's factory
+binding has no action text; the guide calls that button battery status, which Omalogi
+does not name. No button was pressed, and no assignment was written through a marker.
+
+Result: **consistent**. The model is not marked verified.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after

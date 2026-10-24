@@ -280,6 +280,15 @@ test("factoryAction reads what use default puts back", () => {
   assert.equal(Model.factoryAction({ factory: null }, "buttons", 0), null)
 })
 
+test("looseBandHeight gives wrapped labels their own rows", () => {
+  assert.equal(Model.looseBandHeight(0, 800, 200, 40, 16), 0)
+  assert.equal(Model.looseBandHeight(3, 800, 200, 40, 16), 56, "three labels fit one row")
+  // 11 labels, 3 per row: four rows, and the strip is taller than one label.
+  assert.equal(Model.looseBandHeight(11, 800, 200, 40, 16), 224)
+  assert.equal(Model.looseBandHeight(11, 3000, 200, 40, 16), 56, "a wide strip stays one row")
+  assert.equal(Model.looseBandHeight(4, 100, 200, 40, 16), 224, "narrower than one label still stacks")
+})
+
 test("fitPictureHeight fits the width within bounds", () => {
   const views = [{ width: 1000, height: 2000 }, { width: 500, height: 2000 }]
   // Aspect ratios add up to 0.75, so 300 px of width holds a 400 px tall picture.
