@@ -93,6 +93,9 @@ struct Fixture {
 pub struct FakeG502x {
     fixture: Fixture,
     product_id: u16,
+    /// What `DeviceTypeAndName` (0x0005) answers: the type (3 is a mouse) and the name.
+    device_type: u8,
+    device_name: String,
     state: Arc<Mutex<State>>,
     responses: mpsc::UnboundedSender<Vec<u8>>,
     reports: AsyncMutex<mpsc::UnboundedReceiver<Vec<u8>>>,
@@ -167,6 +170,8 @@ impl FakeG502x {
         Self {
             fixture,
             product_id: 0xC099,
+            device_type: 3,
+            device_name: "G502 X".to_owned(),
             state: Arc::new(Mutex::new(state)),
             responses,
             reports: AsyncMutex::new(reports),
@@ -202,6 +207,20 @@ impl FakeG502x {
     fn with_firmware_entity(mut self, entity: Vec<u8>) -> Self {
         self.fixture.device_info[0] = self.fixture.device_info[0].saturating_add(1);
         self.fixture.fw_entities.push(entity);
+        self
+    }
+
+    /// The same device, answering `DeviceTypeAndName` with another type (0 is a keyboard).
+    #[allow(dead_code)]
+    pub fn with_device_type(mut self, device_type: u8) -> Self {
+        self.device_type = device_type;
+        self
+    }
+
+    /// The same device, naming itself `name`.
+    #[allow(dead_code)]
+    pub fn with_device_name(mut self, name: &str) -> Self {
+        name.clone_into(&mut self.device_name);
         self
     }
 
@@ -359,6 +378,18 @@ impl FakeG502x {
         let mut state = self.state.lock().expect("fake device state");
         match (id, function) {
             (0x0003, 0) => Ok(fx.device_info.clone()),
+            // getDeviceNameCount, getDeviceName(index), getDeviceType.
+            (0x0005, 0) => Ok(vec![
+                u8::try_from(self.device_name.len()).unwrap_or(u8::MAX),
+            ]),
+            (0x0005, 1) => {
+                let name = self.device_name.as_bytes();
+                let from = usize::from(params[0]).min(name.len());
+                let mut chunk = name[from..].to_vec();
+                chunk.resize(16, 0);
+                Ok(chunk)
+            }
+            (0x0005, 2) => Ok(vec![self.device_type]),
             (0x0003, 1) => fx
                 .fw_entities
                 .get(usize::from(params[0]))

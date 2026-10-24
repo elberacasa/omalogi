@@ -729,6 +729,12 @@ test("untested mice get a badge, one acceptance and a report link", () => {
   assert.match(Model.supportBadge(untested).detail, /G502 Hero/)
   assert.doesNotMatch(Model.supportBadge(untested).detail, /self-test/, "older helpers open the report form")
   assert.match(Model.supportBadge(untested, true).detail, /runs the self-test/)
+  const found = { ...untested, name: "PRO X SUPERLIGHT 2", listed: false }
+  assert.equal(Model.supportBadge(found).text, "Unlisted")
+  assert.match(Model.supportBadge(found).detail, /does not list the PRO X SUPERLIGHT 2 yet/)
+  assert.equal(Model.supportBadge({ ...untested, listed: true }).text, "Untested")
+  assert.equal(Model.canSelfTest({ helper: { version: "0.3.9", protocol: 5 } }, found), true,
+    "an unlisted mouse is verified the same way")
   const helper = protocol => ({ helper: { version: "0.3.8", protocol } })
   assert.equal(Model.canSelfTest(helper(5), untested), true)
   assert.equal(Model.canSelfTest(helper(4), untested), false, "helpers before protocol 5 have no verify")

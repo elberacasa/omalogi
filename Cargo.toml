@@ -11,8 +11,9 @@ repository = "https://github.com/elberacasa/omalogi"
 clap = { version = "4.6.6", features = ["derive"] }
 libc = "0.2.189"
 # OpenLogi's crates are released together and depend on each other's exact versions:
-# move all three at once.
+# move all four at once.
 openlogi-core = "=0.8.17"
+openlogi-device-registry = "=0.8.17"
 openlogi-hid = "=0.8.17"
 openlogi-hidpp = "=0.8.17"
 serde = { version = "1.0.229", features = ["derive"] }

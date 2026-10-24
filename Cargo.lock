@@ -1184,6 +1184,7 @@ dependencies = [
  "clap",
  "libc",
  "openlogi-core",
+ "openlogi-device-registry",
  "openlogi-hid",
  "openlogi-hidpp",
  "serde",

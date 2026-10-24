@@ -6,7 +6,10 @@ use std::{
     io::{self, Read, Write},
     os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use hidpp::{async_trait, channel::RawHidChannel};
@@ -14,11 +17,13 @@ use thiserror::Error;
 use tokio::io::unix::AsyncFd;
 
 const SYSFS_HIDRAW: &str = "/sys/class/hidraw";
+const LOGITECH_VENDOR_ID: u16 = 0x046D;
 const HIDPP_USAGE_PAGE: u32 = 0xFF00;
 const SHORT_REPORT_ID: u32 = 0x10;
 const LONG_REPORT_ID: u32 = 0x11;
 
-/// A Logitech mouse Omalogi knows, wired over USB.
+/// A Logitech mouse Omalogi opens: one of the models it lists, or an unlisted one that
+/// answered that it is a mouse with onboard profiles Omalogi reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SupportedDevice {
     pub vendor_id: u16,
@@ -26,14 +31,17 @@ pub struct SupportedDevice {
     pub name: &'static str,
     /// Tested on real hardware; other models are edited only after the user accepts.
     pub verified: bool,
+    /// In [`SUPPORTED_DEVICES`] or [`WIRELESS_DEVICES`].
+    pub listed: bool,
 }
 
 const fn verified(product_id: u16, name: &'static str) -> SupportedDevice {
     SupportedDevice {
-        vendor_id: 0x046D,
+        vendor_id: LOGITECH_VENDOR_ID,
         product_id,
         name,
         verified: true,
+        listed: true,
     }
 }
 
@@ -42,6 +50,33 @@ const fn untested(product_id: u16, name: &'static str) -> SupportedDevice {
         verified: false,
         ..verified(product_id, name)
     }
+}
+
+/// A Logitech mouse Omalogi does not list, under the USB product id or wireless id it was
+/// found by.
+#[must_use]
+pub const fn unlisted(product_id: u16, name: &'static str) -> SupportedDevice {
+    SupportedDevice {
+        listed: false,
+        ..untested(product_id, name)
+    }
+}
+
+/// `name` as a `&'static str`, kept once per distinct name for the life of the process:
+/// device names come from the mouse for unlisted models, and long-running processes open
+/// the same mouse again and again.
+#[must_use]
+pub fn intern(name: &str) -> &'static str {
+    static NAMES: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+    let mut names = NAMES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(known) = names.iter().find(|known| **known == name) {
+        return known;
+    }
+    let leaked: &'static str = Box::leak(name.to_owned().into_boxed_str());
+    names.push(leaked);
+    leaked
 }
 
 /// Wired G-series mice with HID++ 2.0 onboard profiles. The verified mice come first:
@@ -165,6 +200,59 @@ fn find_supported_in(class_dir: &Path) -> Result<DeviceNode, HidrawError> {
             })
         })
         .ok_or(HidrawError::NotFound)
+}
+
+/// The HID++ interfaces of connected Logitech devices Omalogi does not list, receivers
+/// left out, for a session to ask whether each is a mouse it can edit. Named from the
+/// kernel's `HID_NAME` until the device says its own name.
+#[must_use]
+pub fn find_unlisted() -> Vec<DeviceNode> {
+    find_unlisted_in(Path::new(SYSFS_HIDRAW))
+}
+
+fn find_unlisted_in(class_dir: &Path) -> Vec<DeviceNode> {
+    let Ok(entries) = fs::read_dir(class_dir) else {
+        return Vec::new();
+    };
+    let mut nodes: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    nodes.sort();
+    nodes
+        .into_iter()
+        .filter_map(|sysfs| {
+            let uevent = fs::read_to_string(sysfs.join("device/uevent")).ok()?;
+            let (vendor_id, product_id) = parse_hid_id(&uevent)?;
+            if vendor_id != LOGITECH_VENDOR_ID
+                || SUPPORTED_DEVICES
+                    .iter()
+                    .any(|device| device.product_id == product_id)
+                || openlogi_device_registry::receiver::find_receiver(vendor_id, product_id)
+                    .is_some()
+            {
+                return None;
+            }
+            let descriptor = fs::read(sysfs.join("device/report_descriptor")).ok()?;
+            if hidpp_reports(&descriptor) != (true, true) {
+                return None;
+            }
+            let name = parse_hid_name(&uevent).unwrap_or_else(|| format!("mouse {product_id:04x}"));
+            Some(DeviceNode {
+                device: unlisted(product_id, intern(&name)),
+                path: Path::new("/dev").join(sysfs.file_name()?),
+                sysfs,
+            })
+        })
+        .collect()
+}
+
+/// The model from `HID_NAME=Logitech G PRO X SUPERLIGHT 2`, without the vendor, which
+/// the overlay and reports add themselves.
+fn parse_hid_name(uevent: &str) -> Option<String> {
+    let name = uevent
+        .lines()
+        .find_map(|line| line.strip_prefix("HID_NAME="))?
+        .trim();
+    let model = name.strip_prefix("Logitech").unwrap_or(name).trim();
+    (!model.is_empty()).then(|| model.to_owned())
 }
 
 /// Parses `HID_ID=0003:0000046D:0000C099` from a hidraw parent's `uevent`.
@@ -431,6 +519,54 @@ mod tests {
         assert_eq!(found.path, Path::new("/dev/hidraw4"));
         assert_eq!(found.device.name, "G502 Proteus Core");
         assert!(!found.device.verified);
+    }
+
+    #[test]
+    fn unlisted_candidates_are_logitech_hidpp_interfaces_omalogi_does_not_list() {
+        let root =
+            std::env::temp_dir().join(format!("omalogi-sysfs-unlisted-{}", std::process::id()));
+        for (node, uevent, descriptor) in [
+            // A receiver, a listed mouse, another vendor, then two interfaces of an
+            // unlisted mouse: only the HID++ one is a candidate.
+            ("hidraw3", "HID_ID=0003:0000046D:0000C539\n", G502X_IFACE1),
+            ("hidraw4", "HID_ID=0003:0000046D:0000C07D\n", G502X_IFACE1),
+            ("hidraw5", "HID_ID=0003:00001B1C:00000C1A\n", G502X_IFACE1),
+            (
+                "hidraw6",
+                "HID_ID=0003:0000046D:0000C09B\nHID_NAME=Logitech PRO X SUPERLIGHT 2\n",
+                G502X_IFACE0,
+            ),
+            (
+                "hidraw7",
+                "HID_ID=0003:0000046D:0000C09B\nHID_NAME=Logitech PRO X SUPERLIGHT 2\n",
+                G502X_IFACE1,
+            ),
+        ] {
+            let dir = root.join(node).join("device");
+            fs::create_dir_all(&dir).expect("create fake sysfs");
+            fs::write(dir.join("uevent"), uevent).expect("write uevent");
+            fs::write(dir.join("report_descriptor"), bytes(descriptor)).expect("write descriptor");
+        }
+
+        let found = find_unlisted_in(&root);
+        fs::remove_dir_all(&root).expect("clean up fake sysfs");
+
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].path, Path::new("/dev/hidraw7"));
+        assert_eq!(found[0].device.product_id, 0xC09B);
+        assert_eq!(found[0].device.name, "PRO X SUPERLIGHT 2");
+        assert!(!found[0].device.listed && !found[0].device.verified);
+    }
+
+    #[test]
+    fn hid_names_lose_the_vendor() {
+        assert_eq!(
+            parse_hid_name("HID_ID=0003:0000046D:0000C09B\nHID_NAME=Logitech G309\n").as_deref(),
+            Some("G309")
+        );
+        assert_eq!(parse_hid_name("HID_NAME=Logitech\n"), None);
+        assert_eq!(parse_hid_name("HID_ID=0003:0000046D:0000C09B\n"), None);
+        assert!(std::ptr::eq(intern("G309"), intern("G309")), "kept once");
     }
 
     #[test]
