@@ -81,12 +81,11 @@ pub fn intern(name: &str) -> &'static str {
 
 /// Wired G-series mice with HID++ 2.0 onboard profiles. The verified mice come first:
 /// the G502 X, the G502 Hero, then the G502 Lightspeed. The untested models and their
-/// USB ids come from
-/// libratbag's device database (`data/devices/*.device`, MIT). libratbag calls
-/// 046d:c08d "G502 Hero Wireless"; that is not the product. The mouse's own HID name
-/// is "G502 LIGHTSPEED Wireless Gaming Mouse", and the kernel lists c08d as the G502
-/// Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. USB c08d and receiver
-/// WPID 407f are the same G502 Lightspeed, and both are verified.
+/// USB ids come from libratbag's device database (`data/devices/*.device`, MIT).
+/// libratbag calls 046d:c08d "G502 Hero Wireless"; that is not the product. The mouse's
+/// own HID name is "G502 LIGHTSPEED Wireless Gaming Mouse", and the kernel lists c08d as
+/// the G502 Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. USB c08d and
+/// receiver WPID 407f are the same G502 Lightspeed, and both are verified.
 pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     verified(0xC099, "G502 X"),
     verified(0xC08B, "G502 Hero"),

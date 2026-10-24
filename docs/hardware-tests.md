@@ -524,7 +524,8 @@ onboard mode. Profiles 1 and 2 on, 3 to 5 off, profile 2 in use.
 | Notes | slot 8 on both layers stayed as the mouse stores it; slot 11 is past the 11 buttons and was refused; unsorted stages read back as `[1600, 800, null, null, null]` |
 | Restore | every sector was as it was before the test. A later `omalogi profiles` matched the listing from before the run: profile 2 in use, profiles 3 to 5 off |
 
-Result: **pass**. USB 046d:c08d and receiver WPID 407f are both verified. The wired G502 X Lightspeed (c098) is a different mouse and stays untested.
+Result: **pass**. USB 046d:c08d and receiver WPID 407f are both verified. The wired
+G502 X Lightspeed (c098) is a different mouse and stays untested.
 
 ## Observations
 

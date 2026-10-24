@@ -574,8 +574,9 @@ async fn run_device(json: bool, command: DeviceCommand) -> Result<(), Box<dyn Er
                 } else {
                     format!(
                         "You can now edit the {}. It has not been tested with Omalogi, so every \
-                         write is backed up first and read back to verify it.\nTell us how it \
-                         went: https://github.com/elberacasa/omalogi/issues/new?template=device.yml\n",
+                         write is backed up first and read back to verify it.\n`omalogi verify` \
+                         runs the self-test that marks it verified, or tell us how it went: \
+                         https://github.com/elberacasa/omalogi/issues/new?template=mouse.yml\n",
                         support.name
                     )
                 }
