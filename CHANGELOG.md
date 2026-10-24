@@ -5,6 +5,13 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Security
+
+- rustls 0.23.46 (from 0.23.44), for GHSA-2mjx-qc3c-rqvc: TLS 1.3 handshake messages
+  were accepted at the wrong encryption level. The transcript stayed authenticated, so a
+  network attacker could not alter a handshake. Omalogi only uses TLS to download mouse
+  pictures (`omalogi picture`).
+
 ### Added
 
 - Mice Omalogi does not list are opened when they say they can be. With no listed mouse
