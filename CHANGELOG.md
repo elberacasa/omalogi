@@ -5,6 +5,8 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+## [0.3.8] - 2026-10-23
+
 ### Added
 
 - `omalogi check` reads every onboard profile and says whether Omalogi reads it as the
