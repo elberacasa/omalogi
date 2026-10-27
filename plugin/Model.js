@@ -819,6 +819,19 @@ function entriesWithoutHotspot(entries, views) {
   return (entries || []).filter(function(entry) { return !placed[entry.slot] })
 }
 
+// Height of the strip under the picture for buttons that have no dot. One row when
+// they fit the width; further rows when they wrap, so they stay above the layer switch.
+function looseBandHeight(count, width, labelWidth, labelHeight, spacing) {
+  if (!count || count < 1) return 0
+  var gap = spacing > 0 ? spacing : 0
+  var cell = labelWidth + gap
+  var cols = 1
+  if (cell > 0 && width >= labelWidth) cols = Math.floor((width + gap) / cell)
+  if (cols < 1) cols = 1
+  var rows = Math.ceil(count / cols)
+  return rows * labelHeight + rows * gap
+}
+
 // The tallest picture height, between `min` and `max`, at which the views fit `width`.
 function fitPictureHeight(views, width, viewGap, min, max) {
   var aspect = 0

@@ -47,7 +47,8 @@ Item {
   readonly property int labelGap: Style.spacing.sm
   readonly property int sideGap: Style.space(64)
   readonly property int footerHeight: Style.space(52)
-  readonly property int looseHeight: looseEntries.length > 0 ? labelHeight + Style.spacing.lg : 0
+  readonly property int looseHeight: Model.looseBandHeight(
+    looseEntries.length, width, labelWidth, labelHeight, Style.spacing.lg)
   readonly property int switcherHeight: views.length > 1 ? Style.space(96) : 0
   readonly property int pictureHeight: Model.fitPictureHeight(
     shownViews,

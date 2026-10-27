@@ -38,12 +38,19 @@ const G502X_BUTTON_NAMES: &[&str] = &[
     "G1", "G2", "G3", "G4", "G6", "G5", "G10", "G11", "G9", "G8", "G7",
 ];
 
+/// The names on the G502 Lightspeed, by onboard slot. Here the asset id g<N> is the
+/// printed G<N>, including the two wheel tilts (docs/hardware-tests.md).
+const G502_LIGHTSPEED_BUTTON_NAMES: &[&str] = &[
+    "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11",
+];
+
 /// Depots whose button ids are checked against the device's onboard slots, with the
 /// printed name of each slot's button. For these, `<depot>_g<N>_m1` is onboard slot N-1
 /// (docs/hardware-tests.md).
 const VERIFIED_DEPOTS: &[(&str, &[&str])] = &[
     ("g502x", G502X_BUTTON_NAMES),
     ("g502x_lightspeed", G502X_BUTTON_NAMES),
+    ("g502_wireless", G502_LIGHTSPEED_BUTTON_NAMES),
 ];
 
 #[derive(Debug, Error)]
@@ -338,11 +345,15 @@ pub fn load(
 
 /// `<depot>_g<N>_m1` is onboard slot N-1 on verified depots; wheel ids have no slot.
 /// Some depots spell their name with hyphens in button ids: `g502x_lightspeed` names
-/// its buttons `g502x-lightspeed_g<N>_m1`.
+/// its buttons `g502x-lightspeed_g<N>_m1`. The G502 Lightspeed depot `g502_wireless`
+/// omits the underscore: `g502wireless_g<N>_m1`.
 fn onboard_slot(depot: &str, slot_id: &str) -> Option<usize> {
+    let hyphenated = depot.replace('_', "-");
+    let compact = depot.replace('_', "");
     let number = slot_id
         .strip_prefix(depot)
-        .or_else(|| slot_id.strip_prefix(depot.replace('_', "-").as_str()))?
+        .or_else(|| slot_id.strip_prefix(hyphenated.as_str()))
+        .or_else(|| slot_id.strip_prefix(compact.as_str()))?
         .strip_prefix("_g")?
         .strip_suffix("_m1")?;
     if number.is_empty() || !number.bytes().all(|b| b.is_ascii_digit()) {
@@ -696,5 +707,46 @@ mod tests {
         assert_eq!(onboard_slot("g502x", "g502x_g0_m1"), None);
         assert_eq!(onboard_slot("g502x", "g502x_g1_m2"), None);
         assert_eq!(onboard_slot("g502x", "other_g1_m1"), None);
+        assert_eq!(onboard_slot("g502_wireless", "g502wireless_g1_m1"), Some(0));
+        assert_eq!(
+            onboard_slot("g502_wireless", "g502wireless_g11_m1"),
+            Some(10)
+        );
+        assert_eq!(
+            onboard_slot("g502_wireless", "g502-wireless_g5_m1"),
+            Some(4)
+        );
+        assert_eq!(
+            onboard_slot("g502_wireless", "g502_wireless_g6_m1"),
+            Some(5)
+        );
+        assert_eq!(
+            onboard_slot("g502_wireless", "g502wireless_scroll1_m1"),
+            None
+        );
+    }
+
+    #[test]
+    fn the_g502_lightspeed_picture_uses_its_own_button_names() {
+        let dir = TempDir::new("g502-wireless");
+        let files = host("g502_wireless", FRONT);
+        let requests = RefCell::new(Vec::new());
+        let picture = load(&dir.0, 0xC099, ONLINE, serve(&files, &requests)).unwrap();
+        assert!(picture.slots_verified);
+        assert_eq!(picture.button_names, G502_LIGHTSPEED_BUTTON_NAMES);
+        assert_eq!(
+            picture.button_names[4], "G5",
+            "the forward button is printed G5"
+        );
+        assert_eq!(
+            picture.button_names[5], "G6",
+            "the sniper button is printed G6"
+        );
+        let slots: Vec<Vec<usize>> = picture
+            .views
+            .iter()
+            .map(|view| view.hotspots.iter().map(|spot| spot.slot).collect())
+            .collect();
+        assert_eq!(slots, [vec![0], vec![3]]);
     }
 }
