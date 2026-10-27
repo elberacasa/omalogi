@@ -107,8 +107,9 @@ a release happens on `next` and reaches `main` in one step:
 1. On `next`, bump the version in all four places and merge.
 2. Tag `vX.Y.Z` on `next` and push the tag; the release workflow builds the archive.
 3. Pin it: set `HELPER_VERSION` and `HELPER_SHA256` in `install.sh` to that release
-   (hash the downloaded archive and check it against the published `.sha256`), update
-   the AUR package, and merge into `next`.
+   (hash the downloaded archive, check it against the published `.sha256`, and run
+   `gh attestation verify` on it with `-R elberacasa/omalogi`), update the AUR package,
+   and merge into `next`.
 4. Run `scripts/check-helper-pin.sh --release`.
 5. Fast-forward `main` to `next` with `git push origin next:main`. The tag is then in
    `main`'s history, and `main` never holds a plugin that installs another helper.
