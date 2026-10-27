@@ -11,6 +11,11 @@ All notable changes are listed here. The project follows
   were accepted at the wrong encryption level. The transcript stayed authenticated, so a
   network attacker could not alter a handshake. Omalogi only uses TLS to download mouse
   pictures (`omalogi picture`).
+- Release archives come with build provenance. `gh attestation verify
+  omalogi-x86_64-unknown-linux-gnu.tar.gz -R elberacasa/omalogi` checks that the release
+  workflow built the archive from the tagged commit, which a `.sha256` published next to
+  it cannot show. Releases are also immutable: once published, their tag and archives
+  cannot be replaced.
 
 ### Added
 
