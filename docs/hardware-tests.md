@@ -563,6 +563,23 @@ onboard mode. Profiles 1 and 2 on, 3 to 5 off, profile 2 in use.
 Result: **pass**. USB 046d:c08d and receiver WPID 407f are both verified. The wired
 G502 X Lightspeed (c098) is a different mouse and stays untested.
 
+## 2026-11-25: G502 Proteus Spectrum over USB
+
+Device: Logitech G502 Proteus Spectrum, USB 046d:c332, firmware U1 03.02.B0012 (active)
+and BOT 14.00.B0007. Host: Arch Linux (Omarchy 4.5.0, Hyprland 0.56.2). Helper
+`omalogi` 0.3.8, onboard mode. Profiles 1 to 3 on (3 of 3 slots), profile 1 in use,
+running 2600 DPI at 1000 Hz.
+
+| Step | Result |
+|---|---|
+| `omalogi check` | 19 checks passed. Nothing written. Layout memory model 1, profile format 2, already in `VERIFIED_LAYOUTS` |
+| `omalogi verify --profile 3 --yes` | profile 3, since every profile is on and profile 1 is in use. **1638 checks passed, 0 failed, 54 s** |
+| Timings | `apply` median 564 ms (91 requests, max 1097 ms); `set_enabled` median 71 ms (2 requests) |
+| Notes | default slots 5, 8, 9 and 10 stayed as the mouse stores them; slot 11 is past the 11 buttons and was refused; unsorted stages read back as `[1600, 800, null, null, null]`; profile 3 has a single DPI stage, so the default DPI switch live check was skipped; every profile is on, so the off-profile toggle checks were skipped |
+| Restore | every sector was as it was before the test. A later `omalogi check` passed all 19 checks, a fresh `omalogi backup` matched the one taken before the run sector for sector, and `omalogi profiles` still listed profiles 1 to 3 on with profile 1 in use |
+
+Result: **pass**.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after

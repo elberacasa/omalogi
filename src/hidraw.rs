@@ -80,16 +80,18 @@ pub fn intern(name: &str) -> &'static str {
 }
 
 /// Wired G-series mice with HID++ 2.0 onboard profiles. The verified mice come first:
-/// the G502 X, the G502 Hero, then the G502 Lightspeed. The untested models and their
-/// USB ids come from libratbag's device database (`data/devices/*.device`, MIT).
-/// libratbag calls 046d:c08d "G502 Hero Wireless"; that is not the product. The mouse's
-/// own HID name is "G502 LIGHTSPEED Wireless Gaming Mouse", and the kernel lists c08d as
-/// the G502 Lightspeed (`hid-logitech-hidpp`). The wired Hero is c08b. USB c08d and
-/// receiver WPID 407f are the same G502 Lightspeed, and both are verified.
+/// the G502 X, the G502 Hero, the G502 Lightspeed, then the G502 Proteus Spectrum. The
+/// untested models and their USB ids come from libratbag's device database
+/// (`data/devices/*.device`, MIT). libratbag calls 046d:c08d "G502 Hero Wireless"; that
+/// is not the product. The mouse's own HID name is "G502 LIGHTSPEED Wireless Gaming
+/// Mouse", and the kernel lists c08d as the G502 Lightspeed (`hid-logitech-hidpp`). The
+/// wired Hero is c08b. USB c08d and receiver WPID 407f are the same G502 Lightspeed, and
+/// both are verified.
 pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     verified(0xC099, "G502 X"),
     verified(0xC08B, "G502 Hero"),
     verified(0xC08D, "G502 Lightspeed"),
+    verified(0xC332, "G502 Proteus Spectrum"),
     untested(0xC07D, "G502 Proteus Core"),
     untested(0xC07E, "G402"),
     untested(0xC07F, "G302"),
@@ -114,7 +116,6 @@ pub const SUPPORTED_DEVICES: &[SupportedDevice] = &[
     untested(0xC097, "G303 Shroud Edition"),
     untested(0xC098, "G502 X Lightspeed"),
     untested(0xC09D, "G102/G203"),
-    untested(0xC332, "G502 Proteus Spectrum"),
 ];
 
 /// Wireless G-series mice with onboard profiles, by the wireless product id (WPID) their
@@ -574,11 +575,13 @@ mod tests {
     fn the_verified_mouse_is_listed_first_and_ids_are_unique() {
         assert!(SUPPORTED_DEVICES[0].verified);
         assert_eq!(SUPPORTED_DEVICES[0].product_id, 0xC099);
-        assert_eq!(SUPPORTED_DEVICES.iter().filter(|d| d.verified).count(), 3);
+        assert_eq!(SUPPORTED_DEVICES.iter().filter(|d| d.verified).count(), 4);
         assert_eq!(SUPPORTED_DEVICES[1].product_id, 0xC08B);
         assert!(SUPPORTED_DEVICES[1].verified);
         assert_eq!(SUPPORTED_DEVICES[2].product_id, 0xC08D);
         assert!(SUPPORTED_DEVICES[2].verified);
+        assert_eq!(SUPPORTED_DEVICES[3].product_id, 0xC332);
+        assert!(SUPPORTED_DEVICES[3].verified);
         let mut ids: Vec<u16> = SUPPORTED_DEVICES.iter().map(|d| d.product_id).collect();
         ids.sort_unstable();
         ids.dedup();
