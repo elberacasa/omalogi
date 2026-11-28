@@ -580,6 +580,25 @@ running 2600 DPI at 1000 Hz.
 
 Result: **pass**.
 
+## 2026-11-27: OpenLogi 0.9.0 on the G502 X over USB
+
+Device: Logitech G502 X, USB 046d:c099, firmware U1 60.00.B0009 (active) and BL1
+59.00.B0002. Helper `omalogi` 0.3.9 built from the `deps/openlogi-0.9.0` branch, onboard
+mode. Profiles 1 to 3 on, 4 and 5 off, profile 1 in use.
+
+| Step | Result |
+|---|---|
+| `omalogi info`, `omalogi profiles` | read the same as with the 0.3.8 helper |
+| `omalogi check` | 29 checks passed. Nothing written |
+| `omalogi verify --yes` | profile 4, the first one turned off. **1980 checks passed, 0 failed, 32 s** |
+| Timings | `apply` median 273 ms (88 requests, max 485 ms); `set_enabled` median 582 ms (6 requests, max 1005 ms); `state` median 377 ms (12 requests); `undo` median 415 ms (6 requests) |
+| Notes | slot 11 is past the 11 buttons and was refused; unsorted stages read back as `[1600, 800, null, null, null]` |
+| Restore | every sector was as it was before the test. A fresh `omalogi backup` matched the one taken before the run in all 9 sectors, `omalogi check` passed all 29 checks again, and `omalogi profiles` still listed profiles 1 to 3 on with profile 1 in use |
+
+Result: **pass** over USB. Not run through a receiver: none was at hand, and OpenLogi
+0.9.0 changed the Unifying receiver and inventory probe code, so that path is still to be
+tested on this build.
+
 ## Observations
 
 - 2026-09-16: during the in-use phase of the self-test, one `omalogi dpi` read right after
@@ -594,6 +613,11 @@ Result: **pass**.
   autosuspend is off for the mouse (`power/control` = `on`, never suspended). Cause
   unknown. Follow-up: a cross-process device lock around memory writes, and the daemon
   tolerates a single transient timeout.
+- 2026-11-27: the mouse ran at 800 DPI, stage 1 of profile 1, before the self-test above,
+  and at 2100 DPI, that profile's default stage, after it. Profile memory was restored
+  byte for byte, but the stage picked with the DPI buttons is live state the self-test
+  does not put back, and `omalogi dpi` refuses a live change in onboard mode. Seen once,
+  and the mouse was in use during the run, so a button press is not ruled out.
 
 ## Not yet tested on hardware
 

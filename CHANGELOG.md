@@ -5,6 +5,15 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+### Changed
+
+- OpenLogi 0.9.0 (from 0.8.17), with `openlogi-core`, `openlogi-device-registry`,
+  `openlogi-hid` and `openlogi-hidpp` moved together. Most of that release is features
+  Omalogi does not use. In the code it does run, the HID++ channel reads into a 64-byte
+  buffer instead of a 20-byte one, the protocol version probe was reworked, and a
+  receiver's HID++ 1.0 devices are now reported as such. A wired G502 X passes
+  `omalogi check` and the full `omalogi verify` on this build.
+
 ## [0.3.9] - 2026-11-27
 
 ### Security
