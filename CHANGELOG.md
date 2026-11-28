@@ -5,6 +5,8 @@ All notable changes are listed here. The project follows
 
 ## Unreleased
 
+## [0.3.9] - 2026-11-27
+
 ### Security
 
 - rustls 0.23.46 (from 0.23.44), for GHSA-2mjx-qc3c-rqvc: TLS 1.3 handshake messages
@@ -38,10 +40,10 @@ All notable changes are listed here. The project follows
 - The Logitech G502 Lightspeed is verified on real hardware (firmware MPM 17.00.B0008),
   both through its LIGHTSPEED receiver (WPID 407f) and over USB (046d:c08d). Profile
   layout (1, 3) was already verified with the G502 X Lightspeed, so it needs no
-  acceptance before a write (#88).
+  acceptance before a write (@tempest-chaoscreator, #88).
 - The Logitech G502 Proteus Spectrum (046d:c332) is verified on real hardware (firmware
   U1 03.02.B0012). Profile layout (1, 2) was already verified with the G502 X, so it
-  needs no acceptance before a write (#99).
+  needs no acceptance before a write (@Gundrak, #99, #100).
 
 ### Changed
 
